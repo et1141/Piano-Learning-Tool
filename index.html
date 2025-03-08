@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Piano Learning Tool</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #f7f7f7;
+    }
+    h1 {
+      color: #333;
+    }
+
+    #upload-form {
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    input[type="file"] {
+      margin-bottom: 10px;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    #midi-download {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Piano Learning Tool</h1>
+  <form id="upload-form">
+    <input type="file" id="audio-file" accept="audio/*" required>
+    <button type="button" onclick="uploadFile()">Upload and Convert</button>
+  </form>
+  <div id="midi-download" style="display:none;">
+    <a id="midi-link" href="#" download="converted.mid">Download MIDI File</a>
+  </div>
+
+  <script>
+async function uploadFile() {
+  const fileInput = document.getElementById('audio-file');
+  const file = fileInput.files[0];
+  if (!file) {
+    alert('Please select an audio file first.');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('audio_file', file);
+
+  try {
+    const response = await fetch('http://localhost:8000/api/upload-audio', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("Response data:", data); // Logowanie odpowiedzi
+
+    if (data.midi_file) {
+      const midiLink = document.getElementById('midi-link');
+      midiLink.href = data.midi_file;
+      document.getElementById('midi-download').style.display = 'block';
+    } else {
+      alert('Error converting file. No MIDI file returned.');
+    }
+  } catch (error) {
+    console.error('Upload failed:', error);
+    alert(`Upload failed: ${error.message}`);
+  }
+}
+  </script>
+</body>
+</html>
