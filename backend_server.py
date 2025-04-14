@@ -1,6 +1,10 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import os
+import numpy as np
+from basic_pitch.inference import predict
+from basic_pitch import ICASSP_2022_MODEL_PATH
+from mido import MidiFile
 
 
 
@@ -24,11 +28,14 @@ def upload_audio():
     file_path = os.path.join(UPLOAD_FOLDER, audio_file.filename)
     audio_file.save(file_path)
 
-    # Dummy conversion for now (just creates an empty MIDI file)
+    # MIDI filename
     midi_filename = audio_file.filename.rsplit('.', 1)[0] + '.mid'
     midi_path = os.path.join(MIDI_FOLDER, midi_filename)
-    with open(midi_path, 'w') as f:
-        f.write('')
+
+    # Audio -> Midi conversion using Basic Pitch: 
+    model_output, midi_data, note_events = predict(file_path, model_or_model_path=ICASSP_2022_MODEL_PATH)
+    midi_data.write(midi_path)
+
     midi_url = f"http://localhost:8000/midi/{midi_filename}"
     return jsonify({'midi_file': midi_url}), 200
 
