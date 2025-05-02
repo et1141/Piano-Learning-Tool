@@ -1,61 +1,104 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Piano Learning Tool</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/5/w3.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato|Raleway:700">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <!-- Layout is based on: https://www.w3schools.com/w3css/tryit.asp?filename=tryw3css_templates_band&stacked=h -->
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      background: #f7f7f7;
+    body {font-family: "Lato", sans-serif}
+    .section {display: none; padding: 64px 16px;}
+    .active-section {display: block;}
+    .w3-bar .w3-title {
+      font-family: 'Raleway', sans-serif;
+      font-size: 20px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      line-height: 46px;
+      padding: 0 16px;
     }
-    h1 {
-      color: #333;
+    .w3-bar .w3-button {
+      height: 46px;
+      line-height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;    
     }
 
-    #upload-form {
-      background: #fff;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-    input[type="file"] {
-      margin-bottom: 10px;
-    }
-    button {
-      background: #4CAF50;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    button:hover {
-      background: #45a049;
-    }
-    #midi-download {
-      margin-top: 20px;
-    }
   </style>
 </head>
 <body>
-  <h1>Piano Learning Tool</h1>
-  <form id="upload-form">
-    <input type="file" id="audio-file" accept="audio/*" required>
-    <button type="button" onclick="uploadFile()">Upload and Convert</button>
-  </form>
-  <div id="midi-download" style="display:none;">
-    <a id="midi-link" href="#" download="converted.mid">Download MIDI File</a>
+
+<!-- Navbar -->
+<div class="w3-top">
+  <div class="w3-bar w3-black w3-card" style="height:46px">
+    <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="showSection('upload')">Upload</a>
+    <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="showSection('visualize')">Visualize</a>
+    <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="showSection('video')">Training Video</a>
+    <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="showSection('detect')">Note Detector</a>
+    <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="showSection('tutorial')">Tutorial</a>
+    <span class="w3-bar-item w3-title w3-right">Piano Learning Tool</span>
+  </div>
+</div>
+
+<!-- Sections -->
+<div class="w3-content" style="margin-top:46px">
+
+  <div id="upload" class="section active-section">
+    <div class="w3-container">
+      <h2>Upload and Convert</h2>
+      <form id="upload-form">
+        <input type="file" id="audio-file" accept="audio/*" required class="w3-input w3-border w3-margin-bottom">
+        <button type="button" class="w3-button w3-black" onclick="uploadFile()">Upload and Convert</button>
+      </form>
+      <div id="midi-download" style="display:none; margin-top: 20px;">
+        <a id="midi-link" href="#" download="converted.mid" class="w3-button w3-black">Download MIDI File</a>
+      </div>
+    </div>
   </div>
 
-  <script>
+  <div id="visualize" class="section">
+    <div class="w3-container">
+      <h2>Visualize MIDI</h2>
+      <p>Here you will be able to preview and edit note pitch, view piano animation, and export a PDF score.</p>
+    </div>
+  </div>
+
+  <div id="video" class="section">
+    <div class="w3-container">
+      <h2>Training Video</h2>
+      <p>Generated animation using SynchVitz will appear here.</p>
+    </div>
+  </div>
+
+  <div id="detect" class="section">
+    <div class="w3-container">
+      <h2>Single Note Detector</h2>
+      <p>Use your microphone to detect notes in real time using FFT.</p>
+    </div>
+  </div>
+
+  <div id="tutorial" class="section">
+    <div class="w3-container">
+      <h2>Tutorial & Documentation</h2>
+      <p>Instructions, video guides, and documentation will be available here.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function showSection(id) {
+  const sections = document.getElementsByClassName('section');
+  for (const section of sections) {
+    section.classList.remove('active-section');
+  }
+  document.getElementById(id).classList.add('active-section');
+}
+
 async function uploadFile() {
   const fileInput = document.getElementById('audio-file');
   const file = fileInput.files[0];
@@ -78,7 +121,6 @@ async function uploadFile() {
     }
 
     const data = await response.json();
-    console.log("Response data:", data); // Logowanie odpowiedzi
 
     if (data.midi_file) {
       const midiLink = document.getElementById('midi-link');
@@ -92,6 +134,7 @@ async function uploadFile() {
     alert(`Upload failed: ${error.message}`);
   }
 }
-  </script>
+</script>
+
 </body>
 </html>
