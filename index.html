@@ -27,7 +27,12 @@
       align-items: center;
       justify-content: center;    
     }
-
+    .upload-success-buttons{
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
@@ -51,11 +56,19 @@
     <div class="w3-container">
       <h2>Upload and Convert</h2>
       <form id="upload-form">
-        <input type="file" id="audio-file" accept="audio/*" required class="w3-input w3-border w3-margin-bottom">
-        <button type="button" class="w3-button w3-black" onclick="uploadFile()">Upload and Convert</button>
+        <input type="file" id="audio-file" accept="audio/*" required class="w3-input w3-border w3-margin-bottom" onclick="showUploadButton()">
+        <button type="button" id="button-upload-file" class="w3-button w3-black" onclick="uploadFile()">Upload and Convert</button>
       </form>
-      <div id="midi-download" style="display:none; margin-top: 20px;">
-        <a id="midi-link" href="#" download="converted.mid" class="w3-button w3-black">Download MIDI File</a>
+      <div class="upload-success-buttons">
+        <div id="midi-download" style="display:none; gap: 16px; margin-top: 20px">
+          <a id="midi-link" href="#" download="converted.mid" class="w3-button w3-black">Download MIDI File</a>
+        </div>
+        <div id="visualize-redirect" style="display:none; gap: 16px; margin-top: 20px;">
+          <button onclick="showSection('visualize')" class="w3-button w3-black">Go to Visualize</button>
+        </div>
+        <div id="training-video-redirect" style="display:none; gap: 16px; margin-top: 20px;">
+          <button onclick="showSection('video')" class="w3-button w3-black">Go to Training Video</button>
+        </div>
       </div>
     </div>
   </div>
@@ -98,7 +111,9 @@ function showSection(id) {
   }
   document.getElementById(id).classList.add('active-section');
 }
-
+function showUploadButton(){
+  document.getElementById('button-upload-file').style.display = 'block';
+}
 async function uploadFile() {
   const fileInput = document.getElementById('audio-file');
   const file = fileInput.files[0];
@@ -125,7 +140,11 @@ async function uploadFile() {
     if (data.midi_file) {
       const midiLink = document.getElementById('midi-link');
       midiLink.href = data.midi_file;
+      document.getElementById('button-upload-file').style.display = 'none';
       document.getElementById('midi-download').style.display = 'block';
+      document.getElementById('training-video-redirect').style.display = 'block';
+      document.getElementById('visualize-redirect').style.display = 'block';
+
     } else {
       alert('Error converting file. No MIDI file returned.');
     }
