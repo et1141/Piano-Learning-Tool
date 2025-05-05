@@ -5,6 +5,10 @@ import numpy as np
 from basic_pitch.inference import predict
 from basic_pitch import ICASSP_2022_MODEL_PATH
 from mido import MidiFile
+from synthviz import create_video
+import json
+import re
+
 
 
 
@@ -13,8 +17,39 @@ CORS(app) # Let any domain to access API
 
 UPLOAD_FOLDER = 'uploads'
 MIDI_FOLDER = 'midi'
+VIDEO_FOLDER = 'videos'
+SONGS_JSON = 'songs.json'
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(MIDI_FOLDER, exist_ok=True)
+os.makedirs(VIDEO_FOLDER, exist_ok=True)
+
+
+
+
+def safe_filename(name):
+    name = name.replace(' ', '_')  
+    name = re.sub(r'[^a-zA-Z0-9_\-\.]', '', name)  
+    return name
+
+
+def load_song_data():
+    if not os.path.exists(SONGS_JSON):
+        return {"songs": []}
+    with open(SONGS_JSON, 'r') as f:
+        return json.load(f)
+
+def save_song_data(data):
+    with open(SONGS_JSON, 'w') as f:
+        json.dump(data, f, indent=2)
+
+
+@app.route('/api/get-midi-files', methods=['GET'])
+def get_midi_files():
+    files = [f for f in os.listdir(MIDI_FOLDER) if f.endswith('.mid')]
+    return jsonify(files)
+
+
 
 @app.route('/api/upload-audio', methods=['POST'])
 def upload_audio():
@@ -42,6 +77,36 @@ def upload_audio():
 @app.route('/midi/<filename>', methods=['GET'])
 def get_midi_file(filename):
     return send_from_directory(MIDI_FOLDER, filename)
+
+
+
+@app.route('/api/generate-video', methods=['POST'])
+def generate_video():
+    data = request.get_json()
+    midi_filename = data.get('midi_filename')
+
+    if not midi_filename or not midi_filename.endswith('.mid'):
+        return jsonify({'error': 'Invalid MIDI filename'}), 400
+
+    midi_path = os.path.join(MIDI_FOLDER, midi_filename)
+    if not os.path.exists(midi_path):
+        return jsonify({'error': 'MIDI file not found'}), 404
+
+    video_filename = midi_filename.rsplit('.', 1)[0] + '.mp4'
+    video_path = os.path.join(VIDEO_FOLDER, video_filename)
+
+    create_video(
+        input_midi=midi_path,
+        video_filename=video_path,
+    )
+    video_url = f'http://localhost:8000/videos/{video_filename}'
+    return jsonify({'video_url': video_url})
+
+
+@app.route('/videos/<filename>', methods=['GET'])
+def get_video_file(filename):
+    return send_from_directory(VIDEO_FOLDER, filename)
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8000)
