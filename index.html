@@ -62,6 +62,11 @@
       <h2>Upload and Convert</h2>
       <form id="upload-form">
         <input type="file" id="audio-file" accept="audio/*" required class="w3-input w3-border w3-margin-bottom" onclick="showUploadButton()">
+        <label for="model-select">Select Model:</label>
+        <select id="model-select">
+          <option value="basic_pitch">Basic Pitch</option>
+          <option value="transkun">Transkun</option>
+        </select>
         <button type="button" id="button-upload-file" class="w3-button w3-black" onclick="uploadFile()" style="margin-bottom: 20px;">Upload and Convert</button>
       </form>
         <div id="midi-download" style="display:none;">
@@ -141,6 +146,7 @@ function showUploadButton(){
 
 async function uploadFile() {
   const fileInput = document.getElementById('audio-file');
+  const modelSelect = document.getElementById('model-select');
 
   const file = fileInput.files[0];
   if (!file) {
@@ -150,6 +156,8 @@ async function uploadFile() {
 
   const formData = new FormData();
   formData.append('audio_file', file);
+  formData.append('model_name', modelSelect.value);
+
 
   try {
     const response = await fetch('http://localhost:8000/api/upload-audio', {
@@ -166,10 +174,10 @@ async function uploadFile() {
     if (data.midi_file) {
       const midiLink = document.getElementById('midi-link');
       midiLink.href = data.midi_file;
-      document.getElementById('button-upload-file').style.display = 'none';
+      document.getElementById('button-upload-file').style.display = 'none'; //invisible untill the user clicks "Choose Fiile" again
       document.getElementById('midi-download').style.display = 'block';
 
-      const uploadedFileName = file.name.replace(/\.[^/.]+$/, '.mid');
+      const uploadedFileName = file.name.replace(/\.[^/.]+$/, '.mid'); //TODO: zwracaj nazwe tej piosenki po prostu 
       currentSong = uploadedFileName;
       loadSongList();
     } else {

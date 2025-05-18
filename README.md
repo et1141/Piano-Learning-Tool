@@ -9,6 +9,17 @@ git clone https://github.com/et1141/piano-audio-to-midi
 cd piano-audio-to-midi
 ```
 
+## Required system packages
+
+
+Make sure you have the following installed **outside of Python**:
+- **FFmpeg** — used by Synthviz to generate video:
+  - macOS: `brew install ffmpeg`
+  - Ubuntu: `sudo apt install ffmpeg`
+- **Timidity** — used by Synthviz to synthesize audio from MIDI:
+  - macOS: `brew install timidity`
+  - Ubuntu: `sudo apt install timidity`
+
 ## Install pyenv (macOS)
 ```bash
 brew install pyenv
