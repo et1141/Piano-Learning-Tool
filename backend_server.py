@@ -9,6 +9,7 @@ from mido import MidiFile
 from synthviz import create_video
 import json
 import re
+import yt_dlp
 
 
 
@@ -78,9 +79,7 @@ def upload_audio():
     model_name = request.form.get('model_name', 'transkun') # transkun is the default model
     midi_filename = audio_file.filename.rsplit('.', 1)[0] + '.mid'
     midi_path = os.path.join(MIDI_FOLDER, midi_filename)
-
-    # Audio -> Midi conversion 
-    
+    # Audio -> Midi conversion     
     if model_name == 'transkun':
         midi_data = transkun_predict(file_path)
     else: 
@@ -89,6 +88,8 @@ def upload_audio():
 
     midi_url = f"http://localhost:8000/midi/{midi_filename}"
     return jsonify({'midi_file': midi_url}), 200
+
+
 
 @app.route('/midi/<filename>', methods=['GET'])
 def get_midi_file(filename):

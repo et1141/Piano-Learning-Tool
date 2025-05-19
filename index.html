@@ -57,21 +57,31 @@
 <!-- Sections -->
 <div class="w3-content" style="margin-top:46px">
 
+  <!-- select model -->
   <div id="upload" class="section active-section">
     <div class="w3-container">
-      <h2>Upload and Convert</h2>
+      <label for="model-select">Select Model:</label>
+      <select id="model-select">
+        <option value="transkun">Transkun</option>
+        <option value="basic_pitch">Basic Pitch</option>
+      </select>
+
+  <!-- upload from a file -->
+      <h2>Upload a File</h2>
       <form id="upload-form">
-        <input type="file" id="audio-file" accept="audio/*" required class="w3-input w3-border w3-margin-bottom" onclick="showUploadButton()">
-        <label for="model-select">Select Model:</label>
-        <select id="model-select">
-          <option value="basic_pitch">Basic Pitch</option>
-          <option value="transkun">Transkun</option>
-        </select>
-        <button type="button" id="button-upload-file" class="w3-button w3-black" onclick="uploadFile()" style="margin-bottom: 20px;">Upload and Convert</button>
+        <input type="file" id="audio-file" accept="audio/*" required class="w3-input w3-border w3-margin-bottom">
+        <button type="button" id="button-upload-file" class="w3-button w3-black" onclick="uploadFile()" style="margin-bottom: 20px;">Upload a File</button>
       </form>
-        <div id="midi-download" style="display:none;">
+  <!-- upload from a youtube link  -->
+      <h2 for="youtube-url">Or Paste a YouTube URL:</h2>
+      <input type="text" id="youtube-url" class="w3-input w3-border w3-margin-bottom" placeholder="https://www.youtube.com/watch?v=...">
+      <button type="button" class="w3-button w3-black" onclick="uploadYoutubeLink()">Upload from YouTube</button>
+
+      <!--      <div id="midi-download" style="display:none;">
           <a id="midi-link" href="#" download="converted.mid" class="w3-button w3-black">Download MIDI File</a>
-        </div>
+        </div>-->
+        <div id="upload-message" class="w3-panel w3-green" style="display: none; margin-top: 42px;"></div>
+
     </div>
   </div>
 
@@ -140,8 +150,14 @@ function showSection(id) {
   document.getElementById(id).classList.add('active-section');
 }
 
-function showUploadButton(){
-  document.getElementById('button-upload-file').style.display = 'block';
+function showUploadMessage(message, isError = false) {
+  const msgBox = document.getElementById('upload-message');
+  msgBox.className = isError ? 'w3-panel w3-red' : 'w3-panel w3-green';
+  msgBox.textContent = message;
+  msgBox.style.display = 'block';
+  setTimeout(() => {
+    msgBox.style.display = 'none';
+  }, 7000); //zniknie po 5 sek
 }
 
 async function uploadFile() {
@@ -172,22 +188,58 @@ async function uploadFile() {
     const data = await response.json();
 
     if (data.midi_file) {
-      const midiLink = document.getElementById('midi-link');
-      midiLink.href = data.midi_file;
-      document.getElementById('button-upload-file').style.display = 'none'; //invisible untill the user clicks "Choose Fiile" again
-      document.getElementById('midi-download').style.display = 'block';
-
       const uploadedFileName = file.name.replace(/\.[^/.]+$/, '.mid'); //TODO: zwracaj nazwe tej piosenki po prostu 
       currentSong = uploadedFileName;
       loadSongList();
+      showUploadMessage(`The file ${uploadedFileName} was uploaded successfully.`);
     } else {
-      alert('Error converting file. No MIDI file returned.');
+      //alert('Error converting file. No MIDI file returned.');
+      showUploadMessage('Error converting file. No MIDI file returned.', true);
     }
   } catch (error) {
     console.error('Upload failed:', error);
-    alert(`Upload failed: ${error.message}`);
+    //alert(`Upload failed: ${error.message}`);
+    showUploadMessage(`Upload failed: ${error.message}`, true);
   }
 }
+
+async function uploadYoutubeLink() {
+  const url = document.getElementById('youtube-url').value;
+  const modelSelect = document.getElementById('model-select');
+
+  if (!url) {
+    alert('Please enter a YouTube link.');
+    return;
+  }
+
+    const formData = new FormData();
+    formData.append('audio_file', file);
+    formData.append('model_name', modelSelect.value);
+
+  try {
+    const response = await fetch('http://localhost:8000/api/upload-youtube', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: formData
+    });
+
+    const data = await response.json();
+
+    if (data.midi_file) {
+      //document.getElementById('midi-link').href = data.midi_file;
+      //document.getElementById('midi-download').style.display = 'block';
+      alert('Conversion complete!');
+      currentSong = data.midi_file.split('/').pop();
+      loadSongList();
+    } else {
+      alert('Conversion failed.');
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Error uploading YouTube link.');
+  }
+}
+
 
 async function loadSongList() {
   const dropdown = document.getElementById('songs-dropdown');
