@@ -32,8 +32,8 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(MIDI_FOLDER, exist_ok=True)
 os.makedirs(VIDEO_FOLDER, exist_ok=True)
 
-
-def get_db_connection():
+################### vvvvvvvvvv Database functions vvvvvvvvvv ###################
+def get_db_connection(): 
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row  # by móc używać dict-like results
     return conn
@@ -48,11 +48,108 @@ def get_song(song_id):
         return row
     else:
         return None
+    
+def get_table(table):
+    if not table.isidentifier():
+        raise ValueError("Invalid table name")  # zabezpieczenie przed SQL injection
+    conn = get_db_connection()
+    cur = conn.cursor()
+    query = f'SELECT * FROM {table}'
+    cur.execute(query)
+    rows = cur.fetchall()
+    conn.close()
+    return rows    
+
+def print_user(user_id):
+    conn = get_db_connection()
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+    row = cur.fetchone()
+    conn.close()
+    if row:
+        print_user_row(row)
+    else:
+        print(f"[USER] No user found with ID: {user_id}")
+
+def print_song(song_id):
+    conn = get_db_connection()
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM songs WHERE id = ?', (song_id,))
+    row = cur.fetchone()
+    conn.close()
+    if row:
+        print_song_row(row)
+    else:
+        print(f"[SONG] No song found with ID: {song_id}")
+
+def print_song_version(version_id):
+    conn = get_db_connection()
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM song_versions WHERE id = ?', (version_id,))
+    row = cur.fetchone()
+    conn.close()
+    if row:
+        print_song_version_row(row)
+    else:
+        print(f"[VERSION] No song version found with ID: {version_id}")
+
+
+
+
+def print_user_row(row):
+    print(f"[USER] ID: {row['id']}, Username: {row['username']}")
+
+def print_song_row(row):
+    print(f"[SONG] ID: {row['id']}, User ID: {row['user_id']}, Title: {row['title']}")
+    print(f"       Audio Path: {row['audio_path']}")
+    print(f"       Picture Path: {row['picture_path']}")
+    print(f"       Original Key: {row['original_key_signature']}")
+    print(f"       Uploaded: {row['uploaded_date']}")
+
+def print_song_version_row(row):
+    print(f"[VERSION] ID: {row['id']}, Song ID: {row['song_id']}")
+    print(f"          Model: {row['model_name']}, Key: {row['key_signature']}")
+    print(f"          MIDI: {row['midi_path']}")
+    print(f"          PDF: {row['pdf_path']}")
+    print(f"          MusicXML: {row['musicxml_path']}")
+    print(f"          Video: {row['video_path']}")
+    print(f"          Created: {row['created_at']}")
+
+def print_all_tables():
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    print("=== USERS ===")
+    cur.execute('SELECT * FROM users')
+    users = cur.fetchall()
+    for user in users:
+        print_user_row(user)
+
+    print("\n=== SONGS ===")
+    cur.execute('SELECT * FROM songs')
+    songs = cur.fetchall()
+    for song in songs:
+        print_song_row(song)
+
+    print("\n=== SONG_VERSIONS ===")
+    cur.execute('SELECT * FROM song_versions')
+    versions = cur.fetchall()
+    for version in versions:
+        print_song_version_row(version)
+    conn.close()
+
+################### ^^^^^^^^^^ Database functions ^^^^^^^^^^ ###################
+
+
 
 def safe_filename(name):
     name = name.replace(' ', '_')  
     name = re.sub(r'[^a-zA-Z0-9_\-\.]', '', name)  
     return name
+
 
 
 def load_song_data():
@@ -239,4 +336,5 @@ def get_video_file(filename):
 
 
 if __name__ == '__main__':
+    print_all_tables()
     app.run(debug=True, host='0.0.0.0', port=8000)
