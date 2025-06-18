@@ -152,7 +152,8 @@ function show_section(id) {
 }
 
 
-async function loadSongList() {
+
+async function load_song_list() {
   const dropdown = document.getElementById('songs-dropdown');
 
   try {
@@ -188,8 +189,8 @@ async function loadSongList() {
             if (el) el.style.display = 'block-inline';
           });
         }
-        currentSong = file;
-        loadSongList(); // reload dropdown to update highlighting
+        currentSong = 2;
+        load_song_list(); // reload dropdown to update highlighting
         console.log('Selected MIDI file:', currentSong);
       };
 
@@ -213,9 +214,9 @@ function show_upload_message(message, isError = false) {
   }, 7000); //dissapear after 5 sec
 }
 
+
 async function convert_file(song_id) {
   const modelSelect = document.getElementById('model-select');
-
   const formData = new FormData();
   formData.append('song_id', song_id);
   formData.append('model_name', modelSelect.value);
@@ -225,12 +226,10 @@ async function convert_file(song_id) {
       method: 'POST',
       body: formData
     });
-
     const data = await response.json();
-
     if (response.ok && data.title) {
-      currentSong = song_id; // now the midi file is saved in database and directory so the user can use it
-      loadSongList();
+      currentSong = data.song_version_id; 
+      load_song_list();
       const title = data.title
       show_upload_message(`The song "${title}" was converted successfully.`);
     } else {
@@ -251,7 +250,6 @@ async function convert_file(song_id) {
     alert('Please select an audio file first.');
     return;
   }
-
   const formData = new FormData();
   formData.append('audio_file', file);
 
@@ -260,7 +258,6 @@ async function convert_file(song_id) {
       method: 'POST',
       body: formData
     });
-
     const data = await response.json();
     if (response.ok && data.song_id) {
       await convert_file(data.song_id);
@@ -301,56 +298,6 @@ async function upload_file_youtube() {
 }
 
 
-
-async function load_song_list() {
-  const dropdown = document.getElementById('songs-dropdown');
-
-  try {
-    const res = await fetch('http://localhost:8000/api/get-midi-files');
-    const files = await res.json();
-
-    dropdown.innerHTML = ''; 
-
-    if (files.length === 0) {
-      dropdown.innerHTML = '<span class="w3-bar-item">No songs available</span>';
-      return;
-    }
-
-    files.forEach(file => {
-      const item = document.createElement('a');
-      item.href = '#';
-      item.className = 'w3-bar-item w3-button';
-
-      //cut long name
-      const maxLength = 30;
-      const displayName = file.length > maxLength ? file.slice(0, maxLength - 6) + '....mid' : file;
-      item.innerText = displayName;
-
-      // hihlight active
-      if (file === currentSong) {
-        item.classList.add('w3-black');
-      }
-
-      item.onclick = () => {
-        if (currentSong!=file){ 
-          elementsToShowOnSongChange.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = 'block-inline';
-          });
-        }
-        currentSong = file;
-        load_song_list(); // reload dropdown to update highlighting
-        console.log('Selected MIDI file:', currentSong);
-      };
-
-      dropdown.appendChild(item);
-    });
-
-  } catch (err) {
-    console.error('Failed to load songs:', err);
-  }
-}
-
 async function generate_training_video() {
   if (!currentSong) {
     alert("No song selected.");
@@ -371,14 +318,14 @@ async function generate_training_video() {
   container.style.display = 'none';
 
 
-
+  
   try {
-    const res = await fetch("http://localhost:8000/api/generate-video", {
+    const res = await fetch("http://localhost:8000/api/get-video", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ midi_filename: currentSong })
+      body: JSON.stringify({ song_version_id: currentSong})
     });
 
     if (!res.ok) {
