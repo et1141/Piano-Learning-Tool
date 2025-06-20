@@ -6,7 +6,7 @@ def init_db():
 
     c.execute('''
     CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL
     )
@@ -14,7 +14,7 @@ def init_db():
 
     c.execute('''
     CREATE TABLE IF NOT EXISTS songs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        song_id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
         title TEXT NOT NULL,
         audio_path TEXT NOT NULL,
@@ -23,13 +23,13 @@ def init_db():
         original_key_root TEXT,
         original_key_mode TEXT,
         uploaded_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id)
+        FOREIGN KEY (user_id) REFERENCES users(user_id)
     )
     ''')
 
     c.execute('''
     CREATE TABLE IF NOT EXISTS song_versions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        version_id INTEGER PRIMARY KEY AUTOINCREMENT,
         song_id INTEGER NOT NULL,
         model_name TEXT NOT NULL,
         key_root TEXT,
@@ -44,7 +44,7 @@ def init_db():
         description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         is_public INTEGER DEFAULT 0,
-        FOREIGN KEY (song_id) REFERENCES songs(id),
+        FOREIGN KEY (song_id) REFERENCES songs(song_id),
         UNIQUE(song_id, model_name, key_root,key_mode,instrument)
     )
     ''')

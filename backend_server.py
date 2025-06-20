@@ -33,6 +33,12 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(MIDI_FOLDER, exist_ok=True)
 os.makedirs(VIDEO_FOLDER, exist_ok=True)
 
+allowed_fields = {'version_id','song_id', 'model_name', 'key_root', 'key_mode', 'instrument',
+                'filename', 'duration', 'midi_path', 'pdf_path', 'musicxml_path',
+                'video_path', 'description', 'created_at', 'is_public',   
+                'title', 'audio_path', 'source', 'picture_path',
+                'original_key_root', 'original_key_mode', 'uploaded_date'}
+
 ######################################## Database functions  ########################################
 
 def get_db_connection(): 
@@ -68,24 +74,54 @@ def add_new_song_version(song_id,model_name,key_root,key_mode,instrument,filenam
 def get_song(song_id):
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('SELECT * FROM songs where id = ?',(song_id,))
+    cur.execute('SELECT * FROM songs where song_id = ?',(song_id,))
     row = cur.fetchone()
     conn.close()
     if row:
         return row
     else:
         return None #TODO
+    
 
 def get_song_version(song_version_id):
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('SELECT * FROM song_versions WHERE id = ?',(song_version_id,))
+    cur.execute('SELECT * FROM song_versions WHERE version_id = ?',(song_version_id,))
     row = cur.fetchone() 
     conn.close()
     if row:
         return row
     else:
         return None #TODO 
+    
+def get_song_versions(fields=None):
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    if fields:
+        # if field is a single elem convert it to list
+        if isinstance(fields, str):
+            fields = [fields]
+
+        for f in fields:
+            if f not in allowed_fields:
+                raise ValueError(f"Unrecognized field: {f}")
+        field_str = ', '.join(fields)
+        print(field_str)
+    else:
+        field_str = '*'  # all columns
+
+    query = f'SELECT {field_str} FROM song_versions LEFT JOIN songs ON song_versions.song_id = songs.song_id'
+
+    cur.execute(query)
+    rows = cur.fetchall() 
+    conn.close()
+    if rows:
+        #return rows #error: TypeError: Object of type Row is not JSON serializable
+        return [dict(row) for row in rows] if rows else []
+    else:
+        return None #TODO 
+
 
 def get_table(table):
     if not table.isidentifier():
@@ -96,7 +132,12 @@ def get_table(table):
     cur.execute(query)
     rows = cur.fetchall()
     conn.close()
-    return rows    
+    if rows:
+        return rows    
+    else: 
+        return None #TODO
+
+
 
 
 ######################################## UPDATE
@@ -113,7 +154,7 @@ def update_song_version(song_version_id, **kwargs):
     cur.execute(f'''
         UPDATE song_versions
         SET {fields}
-        WHERE id = ?
+        WHERE version_id = ?
     ''', values)
     conn.commit()
     conn.close()
@@ -175,10 +216,12 @@ def get_instrument(score):
 
 
 
-@app.route('/api/get-midi-files', methods=['GET'])
+@app.route('/api/get-songs-list-midi', methods=['GET'])
 def get_midi_files():
-    files = [f for f in os.listdir(MIDI_FOLDER) if f.endswith('.mid')]
-    return jsonify(files)
+    songs = get_song_versions(('version_id','title','midi_path'))
+    print("HELLLOOOOOOO")
+    print(songs)
+    return jsonify(songs)
 
 
 
@@ -217,8 +260,9 @@ def download_audio_yt_dlp():
             info = ydl_info.extract_info(youtube_url, download=False)
         
         video_title = info.get('title', 'unknown_title')
-        title = safe_filename_song(video_title) 
-        audio_path = os.path.join(UPLOAD_FOLDER, title) # without '.mp3' at the end because yt-dlp adds it 
+        title = video_title 
+        safe_filename = safe_filename_song(video_title) 
+        audio_path = os.path.join(UPLOAD_FOLDER, safe_filename) # without '.mp3' at the end because yt-dlp adds it 
 
         # Ściągnij i przekonwertuj na MP3
         ydl_opts = {
@@ -235,6 +279,7 @@ def download_audio_yt_dlp():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([youtube_url])
         
+        image_path = None
 
         song_id = add_new_song(user_id, title,audio_path+'.mp3',youtube_url) #TODO 1: dodaj picture path, po logowaniu: 
 
@@ -289,11 +334,9 @@ def convert_audio():
     return jsonify({'title': title, 'song_version_id': song_version_id}), 200
 
 
-
-
 def generate_video(song_version_id):
     song_version = get_song_version(song_version_id)
-    midi_path = song_version['midi_path']
+    midi_path = song_version['midi_path'] #TODO jak napiszesz song_version(song_version_id, fields) zamien na midi_path=get_song_version()
 
     if not os.path.exists(midi_path):
         return jsonify({'error': 'MIDI file not found'}), 404 #TODO convert audio to midi
@@ -303,7 +346,6 @@ def generate_video(song_version_id):
     
     create_video(input_midi=midi_path, video_filename=new_video_path)
     update_song_version(song_version_id, video_path=new_video_path)
-
 
 
 @app.route('/api/get-video', methods=['POST'])
@@ -339,14 +381,9 @@ def get_video_file(song_version_id):
     return send_file(video_path)
         
 
-
-
 @app.route('/midi/<filename>', methods=['GET'])
 def get_midi_file(filename):
     return send_from_directory(MIDI_FOLDER, filename)
-
-
-
 
 
 if __name__ == '__main__':
