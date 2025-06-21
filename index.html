@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/5/w3.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato|Raleway:700">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
     <!-- Layout is based on: https://www.w3schools.com/w3css/tryit.asp?filename=tryw3css_templates_band&stacked=h -->
     <style>
         body {
@@ -60,10 +61,15 @@
             <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('detect')">Note Detector</a>
             <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('tutorial')">Tutorial</a>
             <span class="w3-bar-item w3-title w3-right">Piano Learning Tool</span>
+
             <div class="w3-dropdown-hover w3-hide-small">
-                <button class="w3-padding-large w3-button" title="Songs" onclick="load_song_list()">Songs <i class="fa fa-caret-down"></i></button>
+                <button class="w3-padding-large w3-button" title="Songs" onmouseover="load_song_list()" onclick="show_section('songs')">
+                    Songs <i class="fa fa-caret-down  w3-padding-small"></i>
+                </button>
                 <div class="w3-dropdown-content w3-bar-block w3-card-4" id="songs-dropdown" style="margin-left:5px;"></div>
             </div>
+
+
 
         </div>
     </div>
@@ -110,14 +116,11 @@
         <div id="video" class="section">
             <div class="w3-container w3-center">
                 <h2 class="w3-xxlarge w3-text-black w3-margin-top">Training Video</h2>
-
-
-
                 <div id="video-container" style="margin-top: 30px; display: none;">
                     <video id="synthviz-video" controls style="width: 90%; max-width: 1080px; border: 2px solid #000; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
-          <source id="video-source" src="" type="video/mp4">
-          Your browser does not support the video tag.
-        </video>
+                    <source id="video-source" src="" type="video/mp4">
+                    Your browser does not support the video tag.
+                    </video>
                 </div>
 
                 <button id="generate-video-btn" class="w3-button w3-black w3-xlarge w3-margin-top w3-margin-bottom" onclick="generate_training_video()"> Generate Video </button>
@@ -148,6 +151,14 @@
             </div>
         </div>
 
+        <div id="songs" class="section">
+            <div class="w3-container">
+                <div class="listing-section" id="songs-gallery">
+                    <!-- Songs will be generated here. The code for visualizing the list of songs is based on CodePen project: https://codepen.io/aaronbarnard/pen/oeWvJo-->
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -162,6 +173,9 @@
                 section.classList.remove('active-section');
             }
             document.getElementById(id).classList.add('active-section');
+            if (id === 'songs') {
+                load_songs_gallery();
+            }
         }
 
 
@@ -170,7 +184,7 @@
             const dropdown = document.getElementById('songs-dropdown');
 
             try {
-                const res = await fetch('http://localhost:8000/api/get-songs-list-midi');
+                const res = await fetch('http://localhost:8000/api/get-songs-list-dropdown');
                 const songs = await res.json();
 
 
@@ -185,7 +199,6 @@
 
                     const version_id = song.version_id
                     const title = song.title
-                    const midiPath = song.midiPath
                     console.log(song)
                     console.log('ASFAFSFAS')
 
@@ -199,7 +212,7 @@
                     item.innerText = title;
 
                     // hihlight active
-                    if (version_id === currentSong) {
+                    if (String(version_id) === String(currentSong)) {
                         item.classList.add('w3-black');
                         item.style.pointerEvents = 'none';
                     }
@@ -222,6 +235,70 @@
             } catch (err) {
                 console.error('Failed to load songs:', err);
             }
+        }
+
+
+        async function load_songs_gallery() {
+            const container = document.getElementById('songs-gallery');
+            container.innerHTML = '<p>Loading songs...</p>';
+
+            try {
+                const res = await fetch('http://localhost:8000/api/get-songs-list-gallery');
+                const songs = await res.json();
+                container.innerHTML = ''; // Clear loading message
+
+                if (songs.length === 0) {
+                    container.innerHTML = '<p>No songs available.</p>';
+                    return;
+                }
+
+                songs.forEach(song => {
+                    const product = document.createElement('div');
+                    product.className = 'song-cart';
+
+                    const imgUrl = song.picture_path || 'https://via.placeholder.com/300x200?text=No+Image';
+                    const source = song.source ? `<p><a href="${song.source}" target="_blank">Source</a></p>` : ''
+
+
+                    product.innerHTML = `
+                <div class="w3-card w3-white w3-hover-shadow w3-padding">
+                    <div class="w3-center">
+                        <img src="${imgUrl}" alt="${song.title}" style="width:100%; height:200px; object-fit:cover;">
+                    </div>
+                    <div class="w3-container w3-center">
+                        <h3 class="w3-text-black">${song.title}</h3>
+                        <p>${song.description || 'No description available.'}</p>
+                        <p><strong>Duration:</strong> ${song.duration || '--'} sec</p>
+                        <p><strong>Key:</strong> ${song.key_root || '--'} ${song.key_mode || ''}</p>
+                        ${source}
+                        <div class="w3-margin-top">
+                            <button class="w3-button w3-black w3-small w3-margin-right" onclick="select_song('${song.version_id}')">Select</button>
+                            <button class="w3-button w3-grey w3-small" onclick="edit_song('${song.version_id}')">Edit</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+                    container.appendChild(product);
+                });
+
+            } catch (err) {
+                console.error('Error loading songs:', err);
+                container.innerHTML = '<p>Failed to load songs. Check the console for more info.</p>';
+            }
+        }
+
+
+        function select_song(versionId) {
+            currentSong = versionId;
+            //show_section('video');
+            load_song_list(); // to refresh dropdown with new highlight
+            //document.getElementById('video-status').style.display = 'block';
+            //document.getElementById('generate-video-btn').style.display = 'inline-block';
+        }
+
+        function edit_song(versionId) {
+            //TODO
         }
 
 
@@ -381,6 +458,8 @@
                 btn.disabled = false;
             }
         }
+
+
 
 
         // ****************************************************** Note detect part ******************************************************

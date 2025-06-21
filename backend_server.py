@@ -12,6 +12,11 @@ import re
 import yt_dlp
 from music21 import converter, key
 
+# download thumbnail
+import requests
+from PIL import Image
+from io import BytesIO
+
 import sqlite3
 
 
@@ -26,18 +31,26 @@ DB_PATH = 'songs.db'
 UPLOAD_FOLDER = 'uploads'
 MIDI_FOLDER = 'midi'
 VIDEO_FOLDER = 'videos'
+THUMBNAILS_FOLDER = 'thumbnails'
+
 SONGS_JSON = 'songs.json'
+
 
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(MIDI_FOLDER, exist_ok=True)
 os.makedirs(VIDEO_FOLDER, exist_ok=True)
 
-allowed_fields = {'version_id','song_id', 'model_name', 'key_root', 'key_mode', 'instrument',
-                'filename', 'duration', 'midi_path', 'pdf_path', 'musicxml_path',
-                'video_path', 'description', 'created_at', 'is_public',   
-                'title', 'audio_path', 'source', 'picture_path',
-                'original_key_root', 'original_key_mode', 'uploaded_date'}
+allowedFields_songs = {'song_id','user_id','title','audio_path', 'source', 'picture_path', 
+                       'original_key_root','original_key_mode','uploaded_date',}
+                
+allowedFields_song_versions= {'version_id', 'song_id', 'model_name','key_root', 'key_mode','instrument' , 
+                              'filename',  'duration' ,'midi_path' ,'pdf_path', 'musicxml_path', 'video_path',
+                              'description', 'created_at','is_public'}
+allowedFields = allowedFields_songs | allowedFields_song_versions
+
+
+
 
 ######################################## Database functions  ########################################
 
@@ -53,6 +66,32 @@ def add_new_song(user_id,title,audio_path,youtube_url=''):
     cur = conn.cursor()
     cur.execute('''INSERT INTO songs (user_id,title,audio_path,source) VALUES (?, ?, ?,?)
                 ''',(user_id,title,audio_path,youtube_url))
+    song_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return song_id
+
+
+
+
+def add_new_song(**kwargs):
+    if not kwargs.get('audio_path'):
+        raise ValueError("Missing required field: audio_path")
+    for f in kwargs.keys():
+        if f not in allowedFields_songs:
+            raise ValueError(f"Unrecognized field: {f}")
+
+    fields = ', '.join(kwargs.keys())
+    placeholders = ', '.join(['?'] * len(kwargs))
+    values = list(kwargs.values())
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(f'''
+        INSERT INTO songs ({fields})
+        VALUES ({placeholders})
+    ''', values)
+
     song_id = cur.lastrowid
     conn.commit()
     conn.close()
@@ -104,7 +143,7 @@ def get_song_versions(fields=None):
             fields = [fields]
 
         for f in fields:
-            if f not in allowed_fields:
+            if f not in allowedFields:
                 raise ValueError(f"Unrecognized field: {f}")
         field_str = ', '.join(fields)
         print(field_str)
@@ -216,10 +255,18 @@ def get_instrument(score):
 
 
 
-@app.route('/api/get-songs-list-midi', methods=['GET'])
-def get_midi_files():
-    songs = get_song_versions(('version_id','title','midi_path'))
+@app.route('/api/get-songs-list-dropdown', methods=['GET'])
+def get_midi_files_dropdown():
+    songs = get_song_versions(('version_id','title'))
     print("HELLLOOOOOOO")
+    print(songs)
+    return jsonify(songs)
+
+@app.route('/api/get-songs-list-gallery', methods=['GET'])
+def get_midi_files_gallery():
+    songs = get_song_versions(('version_id','title', 'source',
+                               'picture_path','uploaded_date','key_root', 'key_mode',  'duration', 'description'))
+    print("HELLLOOOOOOO2")
     print(songs)
     return jsonify(songs)
 
@@ -241,7 +288,7 @@ def upload_audio():
     audio_file.save(audio_path)
 
 
-    song_id = add_new_song(user_id, title,audio_path) #TODO 1: dodaj picture path, po logowaniu: 
+    song_id = add_new_song(user_id=user_id, title=title,audio_path=audio_path) #TODO 1: dodaj picture path, po logowaniu: 
     return jsonify({'song_id': song_id}), 200 
 
 
@@ -263,8 +310,21 @@ def download_audio_yt_dlp():
         title = video_title 
         safe_filename = safe_filename_song(video_title) 
         audio_path = os.path.join(UPLOAD_FOLDER, safe_filename) # without '.mp3' at the end because yt-dlp adds it 
+        thumbnail_url = info.get('thumbnail')  
 
-        # Ściągnij i przekonwertuj na MP3
+        image_path = None
+        if thumbnail_url:
+            try:
+                response = requests.get(thumbnail_url)
+                if response.status_code == 200:
+                    image_path = os.path.join(THUMBNAILS_FOLDER, safe_filename + '.jpg')
+                    with open(image_path, 'wb') as f:
+                        f.write(response.content)
+            except Exception as e:
+                print("Warning: Couldn't download thumbnail:", e)
+
+
+        #download and convert to mp3 with yt-dlp
         ydl_opts = {
             'format': 'bestaudio',
             'outtmpl': audio_path,
@@ -279,9 +339,8 @@ def download_audio_yt_dlp():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([youtube_url])
         
-        image_path = None
 
-        song_id = add_new_song(user_id, title,audio_path+'.mp3',youtube_url) #TODO 1: dodaj picture path, po logowaniu: 
+        song_id = add_new_song(user_id=user_id, title=title,audio_path=audio_path+'.mp3',source=youtube_url,picture_path=image_path) #TODO 1: dodaj picture path, po logowaniu: 
 
         return jsonify({'song_id': song_id}), 200
 
