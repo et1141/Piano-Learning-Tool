@@ -7,8 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/5/w3.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato|Raleway:700">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"> D
     <!-- Layout is based on: https://www.w3schools.com/w3css/tryit.asp?filename=tryw3css_templates_band&stacked=h -->
     <style>
         body {
@@ -46,6 +45,105 @@
             justify-content: space-between;
             align-items: center;
             margin-top: 20px;
+        }
+        
+        #songs-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            padding: 20px;
+        }
+        
+        .song-card {
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.3s;
+        }
+        
+        .song-card {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+        
+        .song-card:hover {
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .song-card img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+        }
+        
+        .song-info {
+            padding: 12px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .song-info h3 {
+            font-size: 1.1em;
+            margin-bottom: 6px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .song-description {
+            font-size: 0.9em;
+            color: #555;
+            margin-bottom: 8px;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+        }
+        
+        .song-info p {
+            font-size: 0.85em;
+            margin: 4px 0;
+            color: #333;
+        }
+        
+        .song-info a {
+            color: #0066cc;
+            text-decoration: none;
+            font-size: 0.85em;
+        }
+        
+        .song-info a:hover {
+            text-decoration: underline;
+        }
+        
+        .song-buttons {
+            margin-top: auto;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .song-buttons button {
+            flex: 1;
+            margin: 4px 2px;
+            padding: 6px 10px;
+            border: none;
+            background-color: #222;
+            color: white;
+            font-size: 0.85em;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .song-buttons button:hover {
+            background-color: #444;
         }
     </style>
 </head>
@@ -224,8 +322,8 @@
                                 if (el) el.style.display = 'block-inline';
                             });
                         }
-                        currentSong = version_id;
-                        load_song_list(); // reload dropdown to update highlighting
+                        select_song(version_id);
+
                         console.log('Selected MIDI file:', currentSong);
                     };
 
@@ -253,33 +351,37 @@
                 }
 
                 songs.forEach(song => {
-                    const product = document.createElement('div');
-                    product.className = 'song-cart';
+                    const songContainer = document.createElement('div');
+                    songContainer.className = 'song-cart';
 
-                    const imgUrl = song.picture_path || 'https://via.placeholder.com/300x200?text=No+Image';
-                    const source = song.source ? `<p><a href="${song.source}" target="_blank">Source</a></p>` : ''
+                    const imgUrl = song.picture_path || 'static/music2.png';
+                    const descriptionHTML = song.description ? `<p class="song-description">${song.description}</p>` : '';
+                    const keyHTML = (song.key_root || song.key_mode) ? `<p><strong>Key:</strong> ${song.key_root || '--'} ${song.key_mode || ''}</p>` : '';
+                    const sourceHTML = song.source ? `<p><a href="${song.source}" target="_blank">Source</a></p>` : '';
+                    let selectBtnHTML = ''
+                    if (String(song.version_id) === String(currentSong)) {
+                        selectBtnHTML = `<button class="w3-grey" onclick="select_song('${song.version_id}')">Select</button>`;
+                    } else {
+                        selectBtnHTML = `<button onclick="select_song('${song.version_id}')">Select</button>`;
+                    }
 
-
-                    product.innerHTML = `
-                <div class="w3-card w3-white w3-hover-shadow w3-padding">
-                    <div class="w3-center">
-                        <img src="${imgUrl}" alt="${song.title}" style="width:100%; height:200px; object-fit:cover;">
-                    </div>
-                    <div class="w3-container w3-center">
-                        <h3 class="w3-text-black">${song.title}</h3>
-                        <p>${song.description || 'No description available.'}</p>
-                        <p><strong>Duration:</strong> ${song.duration || '--'} sec</p>
-                        <p><strong>Key:</strong> ${song.key_root || '--'} ${song.key_mode || ''}</p>
-                        ${source}
-                        <div class="w3-margin-top">
-                            <button class="w3-button w3-black w3-small w3-margin-right" onclick="select_song('${song.version_id}')">Select</button>
-                            <button class="w3-button w3-grey w3-small" onclick="edit_song('${song.version_id}')">Edit</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-                    container.appendChild(product);
+                    songContainer.innerHTML = `
+                            <div class="song-card">
+                                <img src="${imgUrl}" alt="${song.title}">
+                                <div class="song-info">
+                                <h3>${song.title}</h3>
+                                ${descriptionHTML}
+                                <p><strong>Duration:</strong> ${song.duration || '--'}</p>
+                                    ${keyHTML}
+                                ${sourceHTML}
+                                    <div class="song-buttons">
+                                        ${selectBtnHTML}
+                                        <button onclick="edit_song('${song.version_id}')">Edit</button>
+                                </div>
+                                </div>
+                            </div>
+                            `;
+                    container.appendChild(songContainer);
                 });
 
             } catch (err) {
@@ -291,11 +393,10 @@
 
         function select_song(versionId) {
             currentSong = versionId;
-            //show_section('video');
             load_song_list(); // to refresh dropdown with new highlight
-            //document.getElementById('video-status').style.display = 'block';
-            //document.getElementById('generate-video-btn').style.display = 'inline-block';
+            load_songs_gallery(); //TODO: Jesli nie chce ponownego ladowania strony to usun, ale wtedy nie bedzie tez podswietlania przycisku
         }
+
 
         function edit_song(versionId) {
             //TODO
