@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask import Flask, request, jsonify, send_from_directory, send_file, render_template
 from flask_cors import CORS
 import os
 import subprocess
@@ -41,13 +41,13 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(MIDI_FOLDER, exist_ok=True)
 os.makedirs(VIDEO_FOLDER, exist_ok=True)
 
-allowedFields_songs = {'song_id','user_id','title','audio_path', 'source', 'picture_path', 
+allowedFieldsSongs = {'song_id','user_id','title','audio_path', 'source','picture_path', 
                        'original_key_root','original_key_mode','uploaded_date',}
                 
-allowedFields_song_versions= {'version_id', 'song_id', 'model_name','key_root', 'key_mode','instrument' , 
-                              'filename',  'duration' ,'midi_path' ,'pdf_path', 'musicxml_path', 'video_path',
+allowedFieldsSongVersions= {'version_id', 'song_id', 'model_name','title_version','key_root', 'key_mode','instrument' , 
+                              'filename',  'duration' ,'midi_path' ,'pdf_path', 'musicxml_path', 'video_path','picture_version_path',
                               'description', 'created_at','is_public'}
-allowedFields = allowedFields_songs | allowedFields_song_versions
+allowedFields = allowedFieldsSongs | allowedFieldsSongVersions
 
 
 
@@ -78,7 +78,7 @@ def add_new_song(**kwargs):
     if not kwargs.get('audio_path'):
         raise ValueError("Missing required field: audio_path")
     for f in kwargs.keys():
-        if f not in allowedFields_songs:
+        if f not in allowedFieldsSongs:
             raise ValueError(f"Unrecognized field: {f}")
 
     fields = ', '.join(kwargs.keys())
@@ -121,7 +121,6 @@ def get_song(song_id):
     else:
         return None #TODO
     
-
 def get_song_version(song_version_id):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -133,7 +132,8 @@ def get_song_version(song_version_id):
     else:
         return None #TODO 
     
-def get_song_versions(fields=None):
+
+def get_song_versions(fields=None, version_id=None):
     conn = get_db_connection()
     cur = conn.cursor()
 
@@ -142,25 +142,51 @@ def get_song_versions(fields=None):
         if isinstance(fields, str):
             fields = [fields]
 
+        selected_fields = []
         for f in fields:
             if f not in allowedFields:
                 raise ValueError(f"Unrecognized field: {f}")
-        field_str = ', '.join(fields)
+            if f == 'title':
+                selected_fields.append("COALESCE(title_version, title) AS title") # if title_version then title_version
+            elif f == 'picture_path':
+                selected_fields.append("COALESCE(picture_version_path, picture_path) AS picture_path") # if title_version then title_version
+            else:
+                selected_fields.append(f)
+
+        field_str = ', '.join(selected_fields)
         print(field_str)
     else:
         field_str = '*'  # all columns
 
     query = f'SELECT {field_str} FROM song_versions LEFT JOIN songs ON song_versions.song_id = songs.song_id'
 
-    cur.execute(query)
+    if version_id is not None:
+        query += ' WHERE song_versions.version_id = ?'
+        cur.execute(query, (version_id,))
+    else:
+        cur.execute(query)
+
     rows = cur.fetchall() 
     conn.close()
-    if rows:
-        #return rows #error: TypeError: Object of type Row is not JSON serializable
-        return [dict(row) for row in rows] if rows else []
-    else:
-        return None #TODO 
+    if not rows:
+        return None
+    if version_id is not None:
+        return dict(rows[0])
+    return [dict(row) for row in rows]
 
+
+
+@app.route('/api/get-song-version/<int:songVersionId>')
+def get_song_version_api(songVersionId):
+    fields_modal = ["title", "key_root", "key_mode", "picture_path", "description", "is_public"]
+    song_version = get_song_versions(fields=fields_modal, version_id=songVersionId)
+
+    if song_version:
+        print(song_version)
+        return song_version
+
+    return {'error': 'Not found'}, 404
+    
 
 def get_table(table):
     if not table.isidentifier():
@@ -180,11 +206,23 @@ def get_table(table):
 
 
 ######################################## UPDATE
+def map_song_versions_field_name(field):
+    if field=='picture_path':
+        return 'picture_version_path'
+    if field=='title':
+        return 'title_version'
+    return field
+
+
 def update_song_version(song_version_id, **kwargs):
     if not kwargs:
         return  # nic do aktualizacji
 
-    fields = ', '.join(f"{key} = ?" for key in kwargs)
+    for f in kwargs:
+        if f not in allowedFields:
+            raise ValueError(f"Unrecognized field for update: {f}")
+        
+    fields = ', '.join(f"{map_song_versions_field_name(f)} = ?" for f in kwargs)
     values = list(kwargs.values())
     values.append(song_version_id)  # dodaj ID na końcu do WHERE
 
@@ -269,6 +307,26 @@ def get_midi_files_gallery():
     print("HELLLOOOOOOO2")
     print(songs)
     return jsonify(songs)
+
+
+@app.route('/api/update-song', methods=['POST'])
+def update_song_api():
+    data = request.get_json()
+    
+    song_version_data_map={}
+    song_version_id = data.get('version_id')
+    
+    update_song_version(song_version_id,title="Einaudi - Experience (Cover)42")
+
+    for f in allowedFieldsSongVersions:
+        if f in data:
+            song_version_data_map[f] = data[f]
+
+    update_song_version(song_version_id, **song_version_data_map)
+    #TODO      update_song(song_version_id, song_data_map)
+#    return {'status': 'ok'}
+    return '', 204
+
 
 
 
@@ -427,22 +485,16 @@ def get_video():
     return jsonify({'video_url': video_url})
 
 
-@app.route('/videos/<song_version_id>', methods=['GET'])
-def get_video_file(song_version_id):
-    song_version = get_song_version(song_version_id)
-    if not song_version:
-        return jsonify({'error': 'Song version not found'}), 404
-    
-    video_path = song_version['video_path']
-    if not video_path or not os.path.exists(video_path):
-        return jsonify({'error': 'Video file not found'}), 404 #TODO
-    
-    return send_file(video_path)
-        
+
 
 @app.route('/midi/<filename>', methods=['GET'])
 def get_midi_file(filename):
     return send_from_directory(MIDI_FOLDER, filename)
+
+
+@app.route('/game')
+def game():
+    return render_template('game.html')
 
 
 if __name__ == '__main__':

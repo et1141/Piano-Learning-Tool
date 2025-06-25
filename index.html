@@ -158,6 +158,8 @@
             <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('video')">Training Video</a>
             <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('detect')">Note Detector</a>
             <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('tutorial')">Tutorial</a>
+            <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('game')">Game</a>
+
             <span class="w3-bar-item w3-title w3-right">Piano Learning Tool</span>
 
             <div class="w3-dropdown-hover w3-hide-small">
@@ -249,6 +251,12 @@
             </div>
         </div>
 
+        <div id="game" class="section">
+            <div id="game-root" class="w3-container">
+                <iframe src="http://127.0.0.1:8000/game" width="100%" height="800px" style="border:none;"></iframe>
+            </div>
+        </div>
+
         <div id="songs" class="section">
             <div class="w3-container">
                 <div class="listing-section" id="songs-gallery">
@@ -259,12 +267,41 @@
 
     </div>
 
+    <div id="edit-modal" class="w3-modal" style="z-index: 1000;">
+        <div class="w3-modal-content w3-card-4" style="max-width: 600px;">
+            <header class="w3-container w3-black">
+                <span onclick="close_edit_modal()" class="w3-button w3-display-topright">&times;</span>
+                <h3>Edit Song Version</h3>
+            </header>
+            <div class="w3-container w3-padding">
+                <form id="edit-form">
+                    <input type="hidden" id="edit-version-id">
+                    <p><label>Title</label><input class="w3-input w3-border" id="edit-title" type="text"></p>
+                    <p><label>Key Root</label><input class="w3-input w3-border" id="edit-key-root" type="text"></p>
+                    <p><label>Key Mode</label><input class="w3-input w3-border" id="edit-key-mode" type="text"></p>
+                    <p><label>Picture URL</label><input class="w3-input w3-border" id="edit-picture" type="text"></p>
+                    <p><label>Description</label><textarea class="w3-input w3-border" id="edit-description"></textarea></p>
+                    <p><label>Is Public</label>
+                        <select class="w3-select w3-border" id="edit-is-public">
+                  <option value="1">Yes</option>
+                  <option value="0">No</option>
+                </select>
+                    </p>
+                    <div class="w3-center w3-padding">
+                        <button class="w3-button w3-black" type="submit">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
     <script>
         let currentSong = null; // song_id
 
         const elementsToShowOnSongChange = ['video-status', 'generate-video-btn']
 
-        function show_section(id) {
+        async function show_section(id) {
             const sections = document.getElementsByClassName('section');
 
             for (const section of sections) {
@@ -274,6 +311,10 @@
             if (id === 'songs') {
                 load_songs_gallery();
             }
+
+
+
+
         }
 
 
@@ -399,7 +440,60 @@
 
 
         function edit_song(versionId) {
-            //TODO
+            fetch(`http://localhost:8000/api/get-song-version/${versionId}`)
+                .then(res => res.json())
+                .then(song => {
+                    document.getElementById('edit-version-id').value = song.version_id;
+                    document.getElementById('edit-title').value = song.title || '';
+                    document.getElementById('edit-key-root').value = song.key_root || '';
+                    document.getElementById('edit-key-mode').value = song.key_mode || '';
+                    document.getElementById('edit-picture').value = song.picture_path || '';
+                    document.getElementById('edit-description').value = song.description || '';
+                    document.getElementById('edit-is-public').value = song.is_public ? '1' : '0';
+                    document.getElementById('edit-modal').style.display = 'block';
+                })
+                .catch(err => {
+                    console.error("Error fetching song version:", err);
+                    alert("Could not load song details.");
+                });
+        }
+
+        document.getElementById('edit-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const payload = {
+                version_id: document.getElementById('edit-version-id').value,
+                title_version: document.getElementById('edit-title').value,
+                key_root: document.getElementById('edit-key-root').value,
+                key_mode: document.getElementById('edit-key-mode').value,
+                picture_path: document.getElementById('edit-picture').value,
+                description: document.getElementById('edit-description').value,
+                is_public: parseInt(document.getElementById('edit-is-public').value)
+            };
+
+            try {
+                const res = await fetch(`http://localhost:8000/api/update-song`, {
+                    method: 'POST', // jak w Twoim endpointzie
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) throw new Error("Update failed");
+
+                close_edit_modal();
+                load_songs_gallery();
+                show_upload_message("Song version updated successfully.");
+            } catch (err) {
+                console.error("Update error:", err);
+                show_upload_message("Failed to update song version.", true);
+            }
+        });
+
+
+        function close_edit_modal() {
+            document.getElementById('edit-modal').style.display = 'none';
         }
 
 
