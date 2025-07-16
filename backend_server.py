@@ -10,7 +10,7 @@ from synthviz import create_video
 import json
 import re
 import yt_dlp
-from music21 import converter, key
+from music21 import converter, stream,key
 
 # download thumbnail
 import requests
@@ -31,6 +31,8 @@ DB_PATH = 'songs.db'
 UPLOAD_FOLDER = 'uploads'
 MIDI_FOLDER = 'midi'
 VIDEO_FOLDER = 'videos'
+XML_FOLDER ='xml'
+PDF_FOLDER = 'pdf'
 THUMBNAILS_FOLDER = 'thumbnails'
 
 SONGS_JSON = 'songs.json'
@@ -40,6 +42,8 @@ SONGS_JSON = 'songs.json'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(MIDI_FOLDER, exist_ok=True)
 os.makedirs(VIDEO_FOLDER, exist_ok=True)
+os.makedirs(XML_FOLDER, exist_ok=True)
+os.makedirs(PDF_FOLDER, exist_ok=True)
 
 allowedFieldsSongs = {'song_id','user_id','title','audio_path', 'source','picture_path', 
                        'original_key_root','original_key_mode','uploaded_date',}
@@ -254,16 +258,6 @@ def safe_filename_version(title,model_name,key_root,key_mode):
     title = re.sub(r'[^a-zA-Z0-9_\-\.]', '', title)  
     return f"{title}_{model_name}_{key_root}_{key_mode}"
 
-def load_song_data():
-    if not os.path.exists(SONGS_JSON):
-        return {"songs": []}
-    with open(SONGS_JSON, 'r') as f:
-        return json.load(f)
-
-def save_song_data(data):
-    with open(SONGS_JSON, 'w') as f:
-        json.dump(data, f, indent=2)
-
 
 def transkun_predict(audio_path,midi_path):
 
@@ -293,19 +287,20 @@ def get_instrument(score):
 
 
 
+
 @app.route('/api/get-songs-list-dropdown', methods=['GET'])
 def get_midi_files_dropdown():
     songs = get_song_versions(('version_id','title'))
-    print("HELLLOOOOOOO")
-    print(songs)
+    #print("HELLLOOOOOOO")
+    #print(songs)
     return jsonify(songs)
 
 @app.route('/api/get-songs-list-gallery', methods=['GET'])
 def get_midi_files_gallery():
     songs = get_song_versions(('version_id','title', 'source',
                                'picture_path','uploaded_date','key_root', 'key_mode',  'duration', 'description'))
-    print("HELLLOOOOOOO2")
-    print(songs)
+    #print("HELLLOOOOOOO2")
+    #print(songs)
     return jsonify(songs)
 
 
@@ -396,7 +391,6 @@ def download_audio_yt_dlp():
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([youtube_url])
-        
 
         song_id = add_new_song(user_id=user_id, title=title,audio_path=audio_path+'.mp3',source=youtube_url,picture_path=image_path) #TODO 1: dodaj picture path, po logowaniu: 
 
@@ -465,26 +459,86 @@ def generate_video(song_version_id):
     update_song_version(song_version_id, video_path=new_video_path)
 
 
-@app.route('/api/get-video', methods=['POST'])
+@app.route('/api/get-video', methods=['GET'])
 def get_video():
-    data = request.get_json()
-    song_version_id = data.get('song_version_id')
-    song_version = get_song_version(song_version_id)
-
-    if not song_version:
+    songVersionId = request.args.get('song_version_id')
+    if not songVersionId:
         return jsonify({'error': 'Song version not found'}), 404
 
-    video_path = song_version['video_path']
+    row = get_song_versions(fields=['video_path'], version_id=songVersionId)
+    video_path = row.get('video_path') if row else None
+
     if not video_path or not os.path.exists(video_path):
         try:
-            generate_video(song_version_id)  # teraz to funkcja robi wszystko
+            generate_video(songVersionId)
         except Exception as e:
             return jsonify({'error': f'Failed to generate video: {str(e)}'}), 500
-    
-    video_url = f'http://localhost:8000/videos/{song_version_id}'
-    return jsonify({'video_url': video_url})
+
+        # ponowne pobranie po wygenerowaniu
+        row = get_song_versions(fields=['video_path'], version_id=songVersionId)
+        video_path = row.get('video_path') if row else None
+
+    if not video_path or not os.path.exists(video_path): # in case create_video doesn't work 
+        return jsonify({'error': 'Video file not found'}), 404
+
+    return send_file(video_path)
 
 
+@app.route('/api/get-musicxml', methods=['GET'])
+def get_musicxml():
+    songVersionId = request.args.get('song_version_id')
+    if not songVersionId:
+        return jsonify({'error': 'Song version not found'}), 404
+
+    row = get_song_versions(fields=['musicxml_path','midi_path','filename'], version_id=songVersionId)
+    musicxml_path = row.get('musicxml_path') if row else None
+    filename = ''
+
+    if not musicxml_path or not os.path.exists(musicxml_path):
+        midi_path = row.get('midi_path') 
+        filename = row.get('filename')+'.musicxml'
+        musicxml_path = os.path.join(XML_FOLDER, filename)
+        try:
+            s = converter.parse(midi_path)
+            s.write('musicxml', musicxml_path)
+            print(f"Successfully converted {midi_path} to {musicxml_path}")
+            update_song_version(songVersionId, musicxml_path=musicxml_path)
+        except Exception as e:
+            print(f"Error during conversion: {e}")
+            return jsonify({'error': 'Failed to convert MIDI to MusicXML', 'details': str(e)}), 500
+
+    return send_file(musicxml_path, download_name = filename)
+
+
+@app.route('/api/get-pdf', methods=['GET'])
+def get_pdf():
+    songVersionId = request.args.get('song_version_id')
+    if not songVersionId:
+        return jsonify({'error': 'Song version not found'}), 404
+
+    row = get_song_versions(fields=['pdf_path','midi_path','filename'], version_id=songVersionId)
+    pdf_path = row.get('pdf_path') if row else None
+    filename = ''
+
+    if not pdf_path or not os.path.exists(pdf_path):
+        midi_path = row.get('midi_path') 
+        filename_base = row.get('filename') 
+        filename = filename_base + '.pdf'
+        output_path = os.path.join(PDF_FOLDER, filename_base) #without .pdf
+        
+        try:
+            s = converter.parse(midi_path)
+            pdf_path = s.write('lily.pdf', output_path)
+            if os.path.exists(output_path): #music21 creates 2 files: 'pdf_path' and 'pdf_path'+'.pdf'
+                os.remove(output_path) 
+
+            print(f"Successfully converted {midi_path} to {pdf_path}")
+            update_song_version(songVersionId, pdf_path=str(pdf_path))
+        except Exception as e:
+            print(f"Error during conversion: {e}")
+            return jsonify({'error': 'Failed to convert MIDI to PDF', 'details': str(e)}), 500
+
+    return send_file(pdf_path, as_attachment=True, download_name = filename)
 
 
 @app.route('/midi/<filename>', methods=['GET'])

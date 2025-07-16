@@ -19,7 +19,9 @@ Make sure you have the following installed **outside of Python**:
 - **Timidity** — used by Synthviz to synthesize audio from MIDI:
   - macOS: `brew install timidity`
   - Ubuntu: `sudo apt install timidity`
-
+- **LilyPond** - used by music21 to generate pdf music sheet:
+  - macOS: `brew install lilypond`
+  - Ubuntu: `sudo apt install lilypond`
 ## Install pyenv (macOS)
 ```bash
 brew install pyenv
