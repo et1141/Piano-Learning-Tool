@@ -40,7 +40,8 @@ echo 'eval "$(pyenv init -)"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-## Install Python 3.10
+## Install Python 3.10 (basic pitch doesn't work with later versions)
+
 ```bash
 pyenv install 3.10.13
 ```
@@ -60,7 +61,6 @@ source piano-env/bin/activate
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
-pip install "basic-pitch[all]"
 ```
 
 ## Run the Backend (Flask)

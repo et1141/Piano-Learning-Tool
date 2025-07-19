@@ -10,7 +10,8 @@ from synthviz import create_video
 import json
 import re
 import yt_dlp
-from music21 import converter, stream,key
+from music21 import converter, stream, interval, key, midi
+
 
 # download thumbnail
 import requests
@@ -52,6 +53,8 @@ allowedFieldsSongVersions= {'version_id', 'song_id', 'model_name','title_version
                               'filename',  'duration' ,'midi_path' ,'pdf_path', 'musicxml_path', 'video_path','picture_version_path',
                               'description', 'created_at','is_public'}
 allowedFields = allowedFieldsSongs | allowedFieldsSongVersions
+fieldsToDeleteOnMidiChange = ['pdf_path', 'musicxml_path', 'video_path']
+fieldsModal = ["version_id", "title", "key_root", "key_mode", "picture_path", "description", "is_public"]
 
 
 
@@ -65,24 +68,11 @@ def get_db_connection():
 
 ######################################## CREATE
 
-def add_new_song(user_id,title,audio_path,youtube_url=''):
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute('''INSERT INTO songs (user_id,title,audio_path,source) VALUES (?, ?, ?,?)
-                ''',(user_id,title,audio_path,youtube_url))
-    song_id = cur.lastrowid
-    conn.commit()
-    conn.close()
-    return song_id
-
-
-
-
 def add_new_song(**kwargs):
     if not kwargs.get('audio_path'):
         raise ValueError("Missing required field: audio_path")
     for f in kwargs.keys():
-        if f not in allowedFieldsSongs:
+        if f not in allowedFieldsSongs and f != "uploaded_date": 
             raise ValueError(f"Unrecognized field: {f}")
 
     fields = ', '.join(kwargs.keys())
@@ -145,7 +135,6 @@ def get_song_versions(fields=None, version_id=None):
         # if field is a single elem convert it to list
         if isinstance(fields, str):
             fields = [fields]
-
         selected_fields = []
         for f in fields:
             if f not in allowedFields:
@@ -182,8 +171,7 @@ def get_song_versions(fields=None, version_id=None):
 
 @app.route('/api/get-song-version/<int:songVersionId>')
 def get_song_version_api(songVersionId):
-    fields_modal = ["title", "key_root", "key_mode", "picture_path", "description", "is_public"]
-    song_version = get_song_versions(fields=fields_modal, version_id=songVersionId)
+    song_version = get_song_versions(fields=fieldsModal, version_id=songVersionId)
 
     if song_version:
         print(song_version)
@@ -210,7 +198,7 @@ def get_table(table):
 
 
 ######################################## UPDATE
-def map_song_versions_field_name(field):
+def map_song_versions_field_name(field): #this function is only used by update_song_version 
     if field=='picture_path':
         return 'picture_version_path'
     if field=='title':
@@ -218,32 +206,43 @@ def map_song_versions_field_name(field):
     return field
 
 
-def update_song_version(song_version_id, **kwargs):
+def update_song_version(songVersionId, **kwargs):
     if not kwargs:
         return  # nic do aktualizacji
-
+    print("\n\n####################### hello from update_song_version #######################\n"+str(kwargs)+"\n\n")
     for f in kwargs:
         if f not in allowedFields:
             raise ValueError(f"Unrecognized field for update: {f}")
         
     fields = ', '.join(f"{map_song_versions_field_name(f)} = ?" for f in kwargs)
     values = list(kwargs.values())
-    values.append(song_version_id)  # dodaj ID na końcu do WHERE
+    values.append(songVersionId)  # dodaj ID na końcu do WHERE
 
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(f'''
         UPDATE song_versions
         SET {fields}
+
         WHERE version_id = ?
     ''', values)
+
     conn.commit()
     conn.close()
 
 
 
 ######################################## DELETE
-
+def delete_song_version(song_version_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('DELETE FROM song_versions WHERE version_id = ?',(song_version_id,))
+    deleted_count = cur.rowcount
+    conn.commit()
+    conn.close()
+    return deleted_count
+ 
+    
 
 
 ########################################################################################################################
@@ -268,6 +267,8 @@ def transkun_predict(audio_path,midi_path):
 
     return midi_path
 
+
+################################################## Music functions  ##################################################
 def get_instrument(score):
     instruments = list(score.recurse().getElementsByClass('Instrument'))
     # Wybierz pierwszy niepusty instrument
@@ -285,7 +286,26 @@ def get_instrument(score):
         print("No instrument found — (saved as Unknown")
     return instrument_name
 
+def transpose_key_root(midi_path, new_key, curr_key=None):
+    score = converter.parse(midi_path)
+    #if not curr_key:
+    #    curr_key = score.analyze('key')
+    #else:
+    #    curr_key=key.Key(curr_key)
+    curr_key = score.analyze('key')
 
+    target_key = key.Key(new_key)
+    i = interval.Interval(curr_key.tonic, target_key.tonic)
+
+    transposed_score = score.transpose(i)
+
+    mf = midi.translate.music21ObjectToMidiFile(transposed_score)
+    mf.open(midi_path, 'wb')
+    mf.write()
+    mf.close()
+
+
+########################################################################################################################
 
 
 @app.route('/api/get-songs-list-dropdown', methods=['GET'])
@@ -307,19 +327,39 @@ def get_midi_files_gallery():
 @app.route('/api/update-song', methods=['POST'])
 def update_song_api():
     data = request.get_json()
-    
+
+    saveAsNew = data.pop('save_as_new',None)
+    print(saveAsNew)
+
+    print(" \n\n####################### hello from update_song_API####################### \n" +str(data)+"\n\n")
+
     song_version_data_map={}
     song_version_id = data.get('version_id')
-    
-    update_song_version(song_version_id,title="Einaudi - Experience (Cover)42")
-
-    for f in allowedFieldsSongVersions:
-        if f in data:
+    for f in data:
+        if map_song_versions_field_name(f) in allowedFieldsSongVersions: 
             song_version_data_map[f] = data[f]
+    
+    song_version = get_song_versions(fields=['key_root'], version_id=song_version_id)
+    curr_key = song_version.get('key_root')
+    new_key = data.get('key_root')
+
+    if curr_key!= new_key:
+        song_version = get_song_versions(fields=fieldsToDeleteOnMidiChange + ['midi_path'], version_id=song_version_id)
+        midi_path = song_version.get('midi_path')
+
+        transpose_key_root(midi_path, new_key, curr_key=curr_key)
+
+        for f in fieldsToDeleteOnMidiChange:
+            if song_version.get(f):
+                try:
+                    os.remove(song_version[f])
+                except FileNotFoundError:
+                    pass  
+                except Exception as e:
+                    print(f"Error deleting file {song_version[f]}: {e}")
+            song_version_data_map[f] = '' 
 
     update_song_version(song_version_id, **song_version_data_map)
-    #TODO      update_song(song_version_id, song_data_map)
-#    return {'status': 'ok'}
     return '', 204
 
 
@@ -392,7 +432,7 @@ def download_audio_yt_dlp():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([youtube_url])
 
-        song_id = add_new_song(user_id=user_id, title=title,audio_path=audio_path+'.mp3',source=youtube_url,picture_path=image_path) #TODO 1: dodaj picture path, po logowaniu: 
+        song_id = add_new_song(user_id=user_id, title=title,audio_path=audio_path+'.mp3',source=youtube_url,picture_path=image_path)
 
         return jsonify({'song_id': song_id}), 200
 
@@ -544,6 +584,15 @@ def get_pdf():
 @app.route('/midi/<filename>', methods=['GET'])
 def get_midi_file(filename):
     return send_from_directory(MIDI_FOLDER, filename)
+
+@app.route('/api/delete-song-version/<int:songVersionId>', methods=['DELETE'])
+def delete_song_version_api(songVersionId):
+    deleted_count = delete_song_version(songVersionId)
+    if deleted_count == 0:
+        return {'error': 'Not found'}, 404
+    return {'success': True, 'deleted_id': songVersionId}, 200
+    
+
 
 
 @app.route('/game')

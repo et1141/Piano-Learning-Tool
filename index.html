@@ -183,6 +183,8 @@
 
         </div>
     </div>
+    <div id="upload-message" class="w3-panel" style="margin-top: 42px; text-align: center;  display: none;"></div>
+
 
     <!-- Sections -->
     <div class="w3-content" style="margin-top:46px">
@@ -211,7 +213,6 @@
                 <!--      <div id="midi-download" style="display:none;">
           <a id="midi-link" href="#" download="converted.mid" class="w3-button w3-black">Download MIDI File</a>
         </div>-->
-                <div id="upload-message" class="w3-panel w3-green" style="display: none; margin-top: 42px;"></div>
 
             </div>
         </div>
@@ -245,7 +246,7 @@
                 <h2>Single Note Detector</h2>
                 <p>Use your microphone to detect notes in real time using FFT.</p>
 
-                <button id="listen-button" onclick="toggle_listening()">🎙 Start Listening</button>
+                <button id="listen-button" onclick="toggle_listening()"> Start Listening</button>
                 <div id="note-display" style="font-size: 24px; margin-top: 20px;">Nuta: --</div>
             </div>
         </div>
@@ -274,28 +275,47 @@
 
     </div>
 
-    <div id="edit-modal" class="w3-modal" style="z-index: 1000;">
+    <div id="manage-modal" class="w3-modal" style="z-index: 1000;">
         <div class="w3-modal-content w3-card-4" style="max-width: 600px;">
             <header class="w3-container w3-black">
                 <span onclick="close_edit_modal()" class="w3-button w3-display-topright">&times;</span>
                 <h3>Edit Song Version</h3>
             </header>
             <div class="w3-container w3-padding">
-                <form id="edit-form">
-                    <input type="hidden" id="edit-version-id">
-                    <p><label>Title</label><input class="w3-input w3-border" id="edit-title" type="text"></p>
-                    <p><label>Key Root</label><input class="w3-input w3-border" id="edit-key-root" type="text"></p>
-                    <p><label>Key Mode</label><input class="w3-input w3-border" id="edit-key-mode" type="text"></p>
-                    <p><label>Picture URL</label><input class="w3-input w3-border" id="edit-picture" type="text"></p>
-                    <p><label>Description</label><textarea class="w3-input w3-border" id="edit-description"></textarea></p>
+                <form id="manage-form">
+                    <input type="hidden" id="manage-version-id">
+                    <p><label>Title</label><input class="w3-input w3-border" id="manage-title" type="text"></p>
+                    <p><label>Key Root</label>
+                        <select class="w3-select w3-border" id="manage-key-root">
+                          <option value="">-- Select Note --</option>
+                          <option value="C">C</option>
+                          <option value="C#">C#</option>
+                          <option value="D">D</option>
+                          <option value="D#">D#</option>
+                          <option value="E">E</option>
+                          <option value="F">F</option>
+                          <option value="F#">F#</option>
+                          <option value="G">G</option>
+                          <option value="G#">G#</option>
+                          <option value="A">A</option>
+                          <option value="A#">A#</option>
+                          <option value="B">B</option>
+                        </select>
+                    </p>
+                    <p><label>Key Mode</label><input class="w3-input w3-border" id="manage-key-mode" type="text"></p>
+                    <p><label>Picture URL</label><input class="w3-input w3-border" id="manage-picture" type="text"></p>
+                    <p><label>Description</label><textarea class="w3-input w3-border" id="manage-description"></textarea></p>
                     <p><label>Is Public</label>
-                        <select class="w3-select w3-border" id="edit-is-public">
+                        <select class="w3-select w3-border" id="manage-is-public">
                   <option value="1">Yes</option>
                   <option value="0">No</option>
                 </select>
                     </p>
                     <div class="w3-center w3-padding">
-                        <button class="w3-button w3-black" type="submit">Save Changes</button>
+                        <button type="button" class="w3-button w3-black" style="width: 32%;" onclick="save_song(false)">Save Changes</button>
+                        <button type="button" class="w3-button w3-black" style="width: 32%;" onclick="save_song(true)">Save as New Version</button>
+                        <button type="button" class="w3-button w3-black" style="width: 32%;" onclick="delete_song()">Delete</button>
+                    
                     </div>
                 </form>
             </div>
@@ -308,19 +328,37 @@
         let currentSection = null
 
 
-        async function show_section(id) {
+        async function show_section(id,restart = false) {
             const sections = document.getElementsByClassName('section');
+
+            if (id === currentSection && ~restart){
+                return;
+            }
+
+            console.log("HELLO FROM SHOW_SECTION id= ", id)
 
             for (const section of sections) {
                 section.classList.remove('active-section');
             }
             document.getElementById(id).classList.add('active-section');
+            
+
+            //pause video when leaving video section
+            if (currentSection === 'video' && id !== 'video') {
+                const video = document.getElementById('synthviz-video');
+                if (video && !video.paused) {
+                    video.pause();
+                }
+            }   
+            
+            //section sepecific functionalities 
             if (id === 'songs') {
                 load_songs_gallery();
             }
-            if (id === 'video') {
+            else if (id === 'video') {
                 generate_training_video()
             }
+
             currentSection = id
         }
 
@@ -345,8 +383,8 @@
 
                     const version_id = song.version_id
                     const title = song.title
-                    console.log(song)
-                    console.log('ASFAFSFAS')
+                    //console.log(song)
+                    //console.log('ASFAFSFAS')
 
                     const item = document.createElement('a');
                     item.href = '#';
@@ -424,7 +462,7 @@
                                 ${sourceHTML}
                                     <div class="song-buttons">
                                         ${selectBtnHTML}
-                                        <button onclick="edit_song('${song.version_id}')">Edit</button>
+                                        <button onclick="manage_song('${song.version_id}')">Manage</button>
                                         <button onclick="download_song_xml('${song.version_id}')">MusicXML</button>
                                         <button onclick="download_song_pdf('${song.version_id}')">Sheet Music</button>
 
@@ -443,33 +481,104 @@
 
 
         function select_song(versionId) {
+            console.log("HELLO FROM SELECT_SONG")
             currentSong = versionId;
             load_song_list(); // to refresh dropdown with new highlight
             load_songs_gallery(); //TODO: Jesli nie chce ponownego ladowania strony to usun, ale wtedy nie bedzie tez podswietlania przycisku
-            if (currentSection === 'video') { //reload video
-                show_section('video')
+            if (currentSection === 'video') { //reload video by loading video section again
+                show_section('video',true) 
             }
         }
 
 
-        function edit_song(versionId) {
+        function manage_song(versionId) { //displays "manage_song modal"
             fetch(`http://localhost:8000/api/get-song-version/${versionId}`)
                 .then(res => res.json())
                 .then(song => {
-                    document.getElementById('edit-version-id').value = song.version_id;
-                    document.getElementById('edit-title').value = song.title || '';
-                    document.getElementById('edit-key-root').value = song.key_root || '';
-                    document.getElementById('edit-key-mode').value = song.key_mode || '';
-                    document.getElementById('edit-picture').value = song.picture_path || '';
-                    document.getElementById('edit-description').value = song.description || '';
-                    document.getElementById('edit-is-public').value = song.is_public ? '1' : '0';
-                    document.getElementById('edit-modal').style.display = 'block';
+                    document.getElementById('manage-version-id').value = song.version_id;
+                    document.getElementById('manage-title').value = song.title || '';
+                    document.getElementById('manage-key-root').value = song.key_root || '';
+                    document.getElementById('manage-key-mode').value = song.key_mode || '';
+                    document.getElementById('manage-picture').value = song.picture_path || '';
+                    document.getElementById('manage-description').value = song.description || '';
+                    document.getElementById('manage-is-public').value = song.is_public ? '1' : '0';
+                    document.getElementById('manage-modal').style.display = 'block';
                 })
                 .catch(err => {
                     console.error("Error fetching song version:", err);
                     alert("Could not load song details.");
                 });
         }
+
+
+        async function save_song(asNewVersion = false) {
+           
+            const payload = {
+                version_id: document.getElementById('manage-version-id').value,
+                title_version: document.getElementById('manage-title').value,
+                key_root: document.getElementById('manage-key-root').value,
+                key_mode: document.getElementById('manage-key-mode').value,
+                picture_path: document.getElementById('manage-picture').value,
+                description: document.getElementById('manage-description').value,
+                is_public: parseInt(document.getElementById('manage-is-public').value),
+                save_as_new: asNewVersion // Możesz to obsłużyć w backendzie
+            };
+
+            try {
+                const res = await fetch(`http://localhost:8000/api/update-song`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) throw new Error("Update failed");
+
+                close_edit_modal();
+                load_songs_gallery();
+                show_user_message("Song version updated successfully.");
+                if (payload.version_id==currentSong){
+                    //console.log("hello from save_song")
+                    generate_training_video(true) //reload video section if the edited song is curr song //TODO add condition: key_root was changed
+                }
+            } catch (err) {
+                console.error("Update error:", err);
+                show_user_message("Failed to update song version.", true);
+            }
+        }
+
+
+        function delete_song(asNewVersion = false) {
+            const versionId = document.getElementById('manage-version-id').value;
+
+            fetch(`http://localhost:8000/api/delete-song-version/${versionId}`, {
+                method: 'DELETE'
+            })
+            .then(res => {
+                if (!res.ok) {
+                    return res.json().then(err => { throw new Error(err.error || 'Unknown error') });
+                }
+                return res.json();
+            })
+            .then(() => {
+                close_edit_modal();
+                load_songs_gallery();
+                show_user_message("Song version deleted successfully.");
+            })
+            .catch(err => {
+                console.error("Error deleting song version:", err);
+                show_user_message("Could not delete song version", true);
+            });
+        }
+
+
+
+        function close_edit_modal() {
+            document.getElementById('manage-modal').style.display = 'none';
+        }
+
+
 
         function download_song_xml(versionId) {
             const xmlUrl = `http://localhost:8000/api/get-musicxml?song_version_id=${versionId}`;
@@ -487,54 +596,15 @@
             link.click();
         }
 
-        document.getElementById('edit-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
 
-            const payload = {
-                version_id: document.getElementById('edit-version-id').value,
-                title_version: document.getElementById('edit-title').value,
-                key_root: document.getElementById('edit-key-root').value,
-                key_mode: document.getElementById('edit-key-mode').value,
-                picture_path: document.getElementById('edit-picture').value,
-                description: document.getElementById('edit-description').value,
-                is_public: parseInt(document.getElementById('edit-is-public').value)
-            };
-
-            try {
-                const res = await fetch(`http://localhost:8000/api/update-song`, {
-                    method: 'POST', // jak w Twoim endpointzie
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!res.ok) throw new Error("Update failed");
-
-                close_edit_modal();
-                load_songs_gallery();
-                show_upload_message("Song version updated successfully.");
-            } catch (err) {
-                console.error("Update error:", err);
-                show_upload_message("Failed to update song version.", true);
-            }
-        });
-
-
-        function close_edit_modal() {
-            document.getElementById('edit-modal').style.display = 'none';
-        }
-
-
-
-        function show_upload_message(message, isError = false) {
+        function show_user_message(message, isError = false) {
             const msgBox = document.getElementById('upload-message');
             msgBox.className = isError ? 'w3-panel w3-red' : 'w3-panel w3-green';
             msgBox.textContent = message;
             msgBox.style.display = 'block';
             setTimeout(() => {
                 msgBox.style.display = 'none';
-            }, 7000); //dissapear after 5 sec
+            }, 5000); //dissapear after 5 sec
         }
 
 
@@ -554,15 +624,15 @@
                     currentSong = data.song_version_id;
                     load_song_list();
                     const title = data.title
-                    show_upload_message(`The song "${title}" was converted successfully.`);
+                    show_user_message(`The song "${title}" was converted successfully.`);
                     //TODO: czy moze po dodaniu ustawic currentSong=data.song_version_id ? 
                 } else {
-                    show_upload_message('Error converting file. No MIDI generated.', true);
+                    show_user_message('Error converting file. No MIDI generated.', true);
                     // TODO: czy tu usunac piosenke z bazy danych? (skoro nie da sie jej skonwertowac?)
                 }
             } catch (error) {
                 console.error('Conversion failed:', error);
-                show_upload_message(`Conversion failed: ${error.message}`, true);
+                show_user_message(`Conversion failed: ${error.message}`, true);
             }
         }
 
@@ -586,11 +656,11 @@
                 if (response.ok && data.song_id) {
                     await convert_file(data.song_id);
                 } else {
-                    show_upload_message('Upload failed: Could not get song ID. Try to upload again.', true);
+                    show_user_message('Upload failed: Could not get song ID. Try to upload again.', true);
                 }
             } catch (err) {
                 console.error('Upload failed:', err);
-                show_upload_message(`Upload failed: ${err.message}`, true);
+                show_user_message(`Upload failed: ${err.message}`, true);
             }
         }
 
@@ -617,16 +687,16 @@
                 if (response.ok && data.song_id) {
                     await convert_file(data.song_id);
                 } else {
-                    show_upload_message('Upload failed: Could not get song ID. Try to upload again.', true);
+                    show_user_message('Upload failed: Could not get song ID. Try to upload again.', true);
                 }
             } catch (err) {
                 console.error('Upload failed:', err);
-                show_upload_message(`Upload failed: ${err.message}`, true);
+                show_user_message(`Upload failed: ${err.message}`, true);
             }
         }
 
 
-        async function generate_training_video() {
+        async function generate_training_video(forceReload = false) {
             if (!currentSong) {
                 alert("No song selected.");
                 return;
@@ -637,24 +707,44 @@
             const video = document.getElementById('synthviz-video');
             const source = document.getElementById('video-source');
 
+            console.log("HELLOOOO")
+            video.pause();
+            video.currentTime = 0;
+            source.src = '';
+
+
             statusText.style.display = 'block';
-            statusText.innerText = 'Generating video: 0%';
             container.style.display = 'none';
+            statusText.innerHTML = `
+                <span id="video-status-text">Generating video... please wait</span>
+            `;
+
 
             try {
                 const videoUrl = `http://localhost:8000/api/get-video?song_version_id=${currentSong}`;
+                if (forceReload) {
+                    videoUrl += `&t=${Date.now()}`; // force refresh by adding timestamp
+                }
+
                 source.src = videoUrl;
                 video.load();
-                container.style.display = 'block';
-                statusText.style.display = 'none';
-                show_section('video');
 
+                video.onloadeddata = () => {
+                    statusText.style.display = 'none';
+                    container.style.display = 'block';
+                };
+                video.onerror = () => {
+                    statusText.innerHTML = `<span style="color: red;">❌ Error loading video.</span>`;
+                    container.style.display = 'none';
+                };
             } catch (error) {
                 console.error("Error generating video:", error);
                 statusText.innerText = 'Error generating video.';
             }
         }
 
+
+  
 
 
 
