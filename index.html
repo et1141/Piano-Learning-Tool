@@ -7,7 +7,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/5/w3.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato|Raleway:700">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"> D
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
     <!-- Layout is based on: https://www.w3schools.com/w3css/tryit.asp?filename=tryw3css_templates_band&stacked=h -->
     <style>
         body {
@@ -18,11 +19,18 @@
             display: none;
             padding: 64px 16px;
         }
-        
         .active-section {
             display: block;
         }
-        
+    
+        #upload-status {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            margin-top: 40px;
+        }
+            
         .w3-bar .w3-title {
             font-family: 'Raleway', sans-serif;
             font-size: 20px;
@@ -164,41 +172,37 @@
     <div class="w3-top">
         <div class="w3-bar w3-black w3-card" style="height:46px">
             <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('upload')">Upload</a>
-            <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('visualize')">Visualize</a>
             <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('video')">Training Video</a>
-            <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('detect')">Note Detector</a>
+            <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('detect')">Pitch Detector</a>
             <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('tutorial')">Tutorial</a>
             <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('game')">Game</a>
-
             <span class="w3-bar-item w3-title w3-right">Piano Learning Tool</span>
-
+            <!-- Songs dropdown -->
             <div class="w3-dropdown-hover w3-hide-small">
                 <button class="w3-padding-large w3-button" title="Songs" onmouseover="load_song_list()" onclick="show_section('songs')">
                     Songs <i class="fa fa-caret-down  w3-padding-small"></i>
                 </button>
                 <div class="w3-dropdown-content w3-bar-block w3-card-4" id="songs-dropdown" style="margin-left:5px;"></div>
             </div>
-
-
-
         </div>
     </div>
-    <div id="upload-message" class="w3-panel" style="margin-top: 42px; text-align: center;  display: none;"></div>
+    
+    <!-- User Message Panel-->
+    <div id="user-message" class="w3-panel" style="margin-top: 42px; text-align: center;  display: none;"></div>
 
 
     <!-- Sections -->
     <div class="w3-content" style="margin-top:46px">
-
+        
+        <!-- Upload Section -->
         <div id="upload" class="section active-section">
             <div class="w3-container">
-
                 <!-- select model -->
                 <label for="model-select">Select Model:</label>
                 <select id="model-select">
-        <option value="transkun">Transkun</option>
-        <option value="basic_pitch">Basic Pitch</option>
-      </select>
-
+                  <option value="transkun">Transkun</option>
+                  <option value="basic_pitch">Basic Pitch</option>
+                </select>
                 <!-- upload from a file -->
                 <h2>Upload a File</h2>
                 <form id="upload-form">
@@ -209,21 +213,18 @@
                 <h2 for="youtube-url">Or Paste a YouTube URL:</h2>
                 <input type="text" id="youtube-url" class="w3-input w3-border w3-margin-bottom" placeholder="https://www.youtube.com/watch?v=...">
                 <button type="button" class="w3-button w3-black" onclick="upload_file_youtube()">Upload from YouTube</button>
+                <!--upload status message box-->
+                <p id="upload-status" class="w3-large w3-text-grey" style="display: none;">
+                    .
+                </p>
 
                 <!--      <div id="midi-download" style="display:none;">
           <a id="midi-link" href="#" download="converted.mid" class="w3-button w3-black">Download MIDI File</a>
         </div>-->
-
             </div>
         </div>
 
-        <div id="visualize" class="section">
-            <div class="w3-container">
-                <h2>Visualize MIDI</h2>
-                <p>Here you will be able to preview and edit note pitch, view piano animation, and export a PDF score.</p>
-            </div>
-        </div>
-
+        <!-- Video Section -->
         <div id="video" class="section">
             <div class="w3-container w3-center">
                 <h2 class="w3-xxlarge w3-text-black w3-margin-top">Training Video</h2>
@@ -240,7 +241,7 @@
             </div>
         </div>
 
-
+        <!-- Detect Section -->
         <div id="detect" class="section">
             <div class="w3-container">
                 <h2>Single Note Detector</h2>
@@ -251,7 +252,7 @@
             </div>
         </div>
 
-
+        <!-- Tutorial Section -->
         <div id="tutorial" class="section">
             <div class="w3-container">
                 <h2>Tutorial & Documentation</h2>
@@ -259,16 +260,19 @@
             </div>
         </div>
 
+        <!-- Game Section -->
+
         <div id="game" class="section">
             <div id="game-root" class="w3-container">
                 <iframe src="http://127.0.0.1:8000/game" width="100%" height="800px" style="border:none;"></iframe>
             </div>
         </div>
 
+        <!-- Songs Section -->
         <div id="songs" class="section">
             <div class="w3-container">
                 <div class="listing-section" id="songs-gallery">
-                    <!-- Songs will be generated here. The code for visualizing the list of songs is based on CodePen project: https://codepen.io/aaronbarnard/pen/oeWvJo-->
+                    <!-- Songs gallery will be generated here. -->
                 </div>
             </div>
         </div>
@@ -328,14 +332,22 @@
         let currentSection = null
 
 
+        function get_status_spinner_message_html(message){
+            return `
+                     <span id="status-text">
+                        ${message}
+                     </span>
+                     <i class="fa fa-spinner fa-spin" aria-hidden="true" style="margin-left: 8px;"></i>
+                   `;
+        }
+
         async function show_section(id,restart = false) {
             const sections = document.getElementsByClassName('section');
 
-            if (id === currentSection && ~restart){
+            if (id === currentSection && !restart){
                 return;
             }
 
-            console.log("HELLO FROM SHOW_SECTION id= ", id)
 
             for (const section of sections) {
                 section.classList.remove('active-section');
@@ -512,8 +524,9 @@
 
 
         async function save_song(asNewVersion = false) {
-           
-            const payload = {
+            
+        
+            const data = {
                 version_id: document.getElementById('manage-version-id').value,
                 title_version: document.getElementById('manage-title').value,
                 key_root: document.getElementById('manage-key-root').value,
@@ -530,7 +543,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(data)
                 });
 
                 if (!res.ok) throw new Error("Update failed");
@@ -538,10 +551,13 @@
                 close_edit_modal();
                 load_songs_gallery();
                 show_user_message("Song version updated successfully.");
-                if (payload.version_id==currentSong){
-                    //console.log("hello from save_song")
-                    generate_training_video(true) //reload video section if the edited song is curr song //TODO add condition: key_root was changed
+
+                if (parseInt(data.version_id) === currentSong) {
+                    console.log("hello from save_song")
+                    generate_training_video(true); //reload video section if the edited song is curr song //TODO add condition: key_root was changed
                 }
+
+
             } catch (err) {
                 console.error("Update error:", err);
                 show_user_message("Failed to update song version.", true);
@@ -598,7 +614,7 @@
 
 
         function show_user_message(message, isError = false) {
-            const msgBox = document.getElementById('upload-message');
+            const msgBox = document.getElementById('user-message');
             msgBox.className = isError ? 'w3-panel w3-red' : 'w3-panel w3-green';
             msgBox.textContent = message;
             msgBox.style.display = 'block';
@@ -610,21 +626,25 @@
 
         async function convert_file(song_id) {
             const modelSelect = document.getElementById('model-select');
-            const formData = new FormData();
-            formData.append('song_id', song_id);
-            formData.append('model_name', modelSelect.value);
+            const dataApi = {
+                song_id: song_id,
+                model_name: modelSelect.value
+            };
 
             try {
                 const response = await fetch('http://localhost:8000/api/convert-audio', {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(dataApi)
                 });
                 const data = await response.json();
                 if (response.ok && data.title) {
-                    currentSong = data.song_version_id;
+                    //currentSong = data.song_version_id;
                     load_song_list();
-                    const title = data.title
-                    show_user_message(`The song "${title}" was converted successfully.`);
+                    load_songs_gallery();
+                    show_user_message(`The song "${data.title}" was converted successfully.`);
                     //TODO: czy moze po dodaniu ustawic currentSong=data.song_version_id ? 
                 } else {
                     show_user_message('Error converting file. No MIDI generated.', true);
@@ -639,13 +659,19 @@
 
         async function upload_file() {
             const fileInput = document.getElementById('audio-file');
+            const statusText = document.getElementById('upload-status');
+
             const file = fileInput.files[0];
             if (!file) {
                 alert('Please select an audio file first.');
                 return;
             }
+
             const formData = new FormData();
             formData.append('audio_file', file);
+
+            statusText.style.display = 'flex';
+            statusText.innerHTML = get_status_spinner_message_html(`Uploading file: ${file.name} ... please wait`)
 
             try {
                 const response = await fetch('http://localhost:8000/api/upload-audio', {
@@ -654,23 +680,31 @@
                 });
                 const data = await response.json();
                 if (response.ok && data.song_id) {
+                    statusText.innerHTML = get_status_spinner_message_html(`Transcribing the file: ${file.name} ... please wait`)
                     await convert_file(data.song_id);
                 } else {
-                    show_user_message('Upload failed: Could not get song ID. Try to upload again.', true);
+                    show_user_message('Upload failed: Could not get song ID during transcription. Try to upload again.', true);
                 }
             } catch (err) {
                 console.error('Upload failed:', err);
                 show_user_message(`Upload failed: ${err.message}`, true);
+            } finally {
+                statusText.innerHTML = ``;
+                statusText.style.display='none';
             }
         }
 
 
         async function upload_file_youtube() {
             const url = document.getElementById('youtube-url').value;
+            const statusText = document.getElementById('upload-status');
+
             if (!url) {
                 alert('Please enter a YouTube link.');
                 return;
             }
+            statusText.style.display = 'flex';
+            statusText.innerHTML = get_status_spinner_message_html(`Downloading song from: ${url} ... please wait`);
 
             try {
                 const response = await fetch('http://localhost:8000/api/download-upload-audio', {
@@ -685,6 +719,7 @@
 
                 const data = await response.json();
                 if (response.ok && data.song_id) {
+                    statusText.innerHTML = get_status_spinner_message_html(`Transcribing the song: ${data.title} ... please wait`);
                     await convert_file(data.song_id);
                 } else {
                     show_user_message('Upload failed: Could not get song ID. Try to upload again.', true);
@@ -693,53 +728,89 @@
                 console.error('Upload failed:', err);
                 show_user_message(`Upload failed: ${err.message}`, true);
             }
+            finally {
+                statusText.innerHTML = ``;
+                statusText.style.display='none';
+            }
         }
 
+        async function waitForVideo(url, retries = 15, delay = 4000) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const res = await fetch(url, { method: 'HEAD' });
+                    if (res.ok || res.status === 409){ 
+                        return res;
+                    }
+                    if (res.status === 500) {
+                        console.warn(`[waitForVideo] Server error 500 at attempt ${i + 1}`);
+                    }
+                } catch (e) {
+                    console.warn("HEAD request failed", e);
+                }
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+            return null;
+        }
 
         async function generate_training_video(forceReload = false) {
             if (!currentSong) {
                 alert("No song selected.");
                 return;
             }
+            console.log("[generate_training_video]")
+            currVersionId= currentSong
 
             const statusText = document.getElementById('video-status');
             const container = document.getElementById('video-container');
             const video = document.getElementById('synthviz-video');
             const source = document.getElementById('video-source');
 
-            console.log("HELLOOOO")
             video.pause();
             video.currentTime = 0;
             source.src = '';
-
-
             statusText.style.display = 'block';
             container.style.display = 'none';
-            statusText.innerHTML = `
-                <span id="video-status-text">Generating video... please wait</span>
-            `;
-
+            statusText.innerHTML = get_status_spinner_message_html(`Generating video... please wait`);
 
             try {
-                const videoUrl = `http://localhost:8000/api/get-video?song_version_id=${currentSong}`;
+                let videoUrl = `http://localhost:8000/api/get-video?song_version_id=${currentSong}`;
                 if (forceReload) {
                     videoUrl += `&t=${Date.now()}`; // force refresh by adding timestamp
                 }
 
-                source.src = videoUrl;
-                video.load();
+                const res = await waitForVideo(videoUrl);
+                if (!res) {
+                    statusText.innerHTML = `<span style="color: red;">Video generation timed out.</span>`;
+                    return;
+                }
 
-                video.onloadeddata = () => {
-                    statusText.style.display = 'none';
-                    container.style.display = 'block';
-                };
-                video.onerror = () => {
-                    statusText.innerHTML = `<span style="color: red;">❌ Error loading video.</span>`;
-                    container.style.display = 'none';
-                };
+                 if (res.status === 409) {
+                    console.log("Video is already generating (409). Waiting...");
+                    return; // There is another job generating video for the song. The other job will load the video. So we can simply end this job here.
+                }
+                 source.src = videoUrl;
+                video.load();
+                
+                if (res.status === 201) { //backend generated new video and it probably took a while - show message to the user 
+
+                    const songUrl = `http://localhost:8000/api/get-song-version/${currVersionId}`;
+                    const resSongVersion = await fetch(songUrl);
+                    const data = await resSongVersion.json();
+                    if (!resSongVersion.ok || !data.success) {
+                        throw new Error(data.error || 'Failed to get song title');
+                    }
+                    const title = data.title?.title || 'Unknown Title';
+                    show_user_message(`Video for the song "${title}" was generated`);
+                }
+
+                statusText.style.display = 'none';
+                container.style.display = 'block';
+
             } catch (error) {
                 console.error("Error generating video:", error);
-                statusText.innerText = 'Error generating video.';
+                statusText.style.display = 'block';
+                statusText.innerHTML = `<span style="color: red;"> Error loading video.</span>`;
+                container.style.display = 'none';
             }
         }
 
@@ -757,10 +828,10 @@
 
             if (isListening) {
                 stop_listening();
-                button.textContent = '🎙 Start Listening';
+                button.textContent = 'Start Listening';
             } else {
                 await start_listening();
-                button.textContent = '🛑 Stop Listening';
+                button.textContent = 'Stop Listening';
             }
         }
 

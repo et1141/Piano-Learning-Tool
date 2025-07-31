@@ -12,6 +12,9 @@ import re
 import yt_dlp
 from music21 import converter, stream, interval, key, midi
 
+import threading
+
+
 
 # download thumbnail
 import requests
@@ -35,7 +38,6 @@ VIDEO_FOLDER = 'videos'
 XML_FOLDER ='xml'
 PDF_FOLDER = 'pdf'
 THUMBNAILS_FOLDER = 'thumbnails'
-
 SONGS_JSON = 'songs.json'
 
 
@@ -45,6 +47,8 @@ os.makedirs(MIDI_FOLDER, exist_ok=True)
 os.makedirs(VIDEO_FOLDER, exist_ok=True)
 os.makedirs(XML_FOLDER, exist_ok=True)
 os.makedirs(PDF_FOLDER, exist_ok=True)
+os.makedirs(THUMBNAILS_FOLDER, exist_ok=True)
+
 
 allowedFieldsSongs = {'song_id','user_id','title','audio_path', 'source','picture_path', 
                        'original_key_root','original_key_mode','uploaded_date',}
@@ -56,6 +60,11 @@ allowedFields = allowedFieldsSongs | allowedFieldsSongVersions
 fieldsToDeleteOnMidiChange = ['pdf_path', 'musicxml_path', 'video_path']
 fieldsModal = ["version_id", "title", "key_root", "key_mode", "picture_path", "description", "is_public"]
 
+
+
+# Sync objects
+videoGenerationJobs = {}
+videoGenerationJobsLock = threading.Lock()  #Protects videoGenerationJobs map
 
 
 
@@ -175,9 +184,17 @@ def get_song_version_api(songVersionId):
 
     if song_version:
         print(song_version)
-        return song_version
+        return {'success': True, 'title': song_version}, 200
 
     return {'error': 'Not found'}, 404
+
+#@app.route('/api/get-song-title/<int:songVersionId>', methods=['GET'])
+#def get_song_version_api(songVersionId):
+#    row = get_song_versions(fields=['title'], version_id=songVersionId)
+#    title = row.get('title') if row else None
+#    if not title:
+#        return {'error': 'Not found'}, 404
+#    return {'success': True, 'title': title}, 200
     
 
 def get_table(table):
@@ -288,14 +305,15 @@ def get_instrument(score):
 
 def transpose_key_root(midi_path, new_key, curr_key=None):
     score = converter.parse(midi_path)
-    #if not curr_key:
-    #    curr_key = score.analyze('key')
-    #else:
-    #    curr_key=key.Key(curr_key)
-    curr_key = score.analyze('key')
+    if not curr_key:
+       curr_key = score.analyze('key')
+    else:
+        curr_key=key.Key(curr_key)
+   # curr_key = score.analyze('key')
 
     target_key = key.Key(new_key)
     i = interval.Interval(curr_key.tonic, target_key.tonic)
+    print("[transpose_key_root]: key_root interval is: " + str(i))
 
     transposed_score = score.transpose(i)
 
@@ -434,7 +452,7 @@ def download_audio_yt_dlp():
 
         song_id = add_new_song(user_id=user_id, title=title,audio_path=audio_path+'.mp3',source=youtube_url,picture_path=image_path)
 
-        return jsonify({'song_id': song_id}), 200
+        return jsonify({'song_id': song_id, 'title':title}), 200
 
     except Exception as e:
         print("YouTube download error:", e)
@@ -445,8 +463,9 @@ def download_audio_yt_dlp():
 @app.route('/api/convert-audio', methods=['POST'])
 def convert_audio():
     # Prepare data
-    model_name = request.form.get('model_name', 'transkun') # transkun is the default model
-    song_id = request.form.get('song_id')
+    data = request.get_json()
+    model_name = data.get('model_name', 'transkun') # transkun is the default model
+    song_id = data.get('song_id')
     song = get_song(song_id)
     if not song:
         return jsonify({'error: Song not found'})
@@ -485,25 +504,44 @@ def convert_audio():
     return jsonify({'title': title, 'song_version_id': song_version_id}), 200
 
 
-def generate_video(song_version_id):
-    song_version = get_song_version(song_version_id)
-    midi_path = song_version['midi_path'] #TODO jak napiszesz song_version(song_version_id, fields) zamien na midi_path=get_song_version()
+def generate_video(songVersionId):
+    with videoGenerationJobsLock:
+        if videoGenerationJobs.get(songVersionId):
+            raise RuntimeError("Video already generating")
+        videoGenerationJobs[songVersionId] = True
 
-    if not os.path.exists(midi_path):
-        return jsonify({'error': 'MIDI file not found'}), 404 #TODO convert audio to midi
+    try:
+        print(f"[generate_video] Starting generation for version_id={songVersionId}")
+        song_version = get_song_version(songVersionId)
+        midi_path = song_version['midi_path']
 
-    video_filename = song_version['filename'] + '.mp4'
-    new_video_path = os.path.join(VIDEO_FOLDER, video_filename)
-    
-    create_video(input_midi=midi_path, video_filename=new_video_path)
-    update_song_version(song_version_id, video_path=new_video_path)
+        if not os.path.exists(midi_path):
+            raise FileNotFoundError("MIDI file not found")
+
+        video_filename = song_version['filename'] + '.mp4'
+        new_video_path = os.path.join(VIDEO_FOLDER, video_filename)
+
+        print(f"[generate_video] Generating video at: {new_video_path}")
+        create_video(input_midi=midi_path, video_filename=new_video_path)
+        update_song_version(songVersionId, video_path=new_video_path)
+
+    finally:
+        with videoGenerationJobsLock:
+            videoGenerationJobs.pop(songVersionId, None)
+        print(f"[generate_video] Finished generation for version_id={songVersionId}")
 
 
-@app.route('/api/get-video', methods=['GET'])
+@app.route('/api/get-video', methods=['GET', 'HEAD'])
 def get_video():
+    def error_response(status, message):
+        if request.method == 'HEAD':
+            return '', status
+        return jsonify({'error': message}), status
+    
+    video_was_generated = False
     songVersionId = request.args.get('song_version_id')
     if not songVersionId:
-        return jsonify({'error': 'Song version not found'}), 404
+        return error_response(404, 'Song version not found')
 
     row = get_song_versions(fields=['video_path'], version_id=songVersionId)
     video_path = row.get('video_path') if row else None
@@ -511,15 +549,23 @@ def get_video():
     if not video_path or not os.path.exists(video_path):
         try:
             generate_video(songVersionId)
-        except Exception as e:
-            return jsonify({'error': f'Failed to generate video: {str(e)}'}), 500
+            video_was_generated = True
 
-        # ponowne pobranie po wygenerowaniu
+        except RuntimeError as e:
+            return error_response(409, str(e))  # Conflict: another job is running
+        except Exception as e:
+            return error_response(500, f'Failed to generate video: {str(e)}')
+
+        # Get video_path from the database 
         row = get_song_versions(fields=['video_path'], version_id=songVersionId)
         video_path = row.get('video_path') if row else None
 
-    if not video_path or not os.path.exists(video_path): # in case create_video doesn't work 
-        return jsonify({'error': 'Video file not found'}), 404
+    if not video_path or not os.path.exists(video_path): 
+        return error_response(404, 'Video file not found')
+
+    if request.method == 'HEAD':
+        statusCode =  201 if video_was_generated else 200
+        return '', statusCode
 
     return send_file(video_path)
 
@@ -593,6 +639,7 @@ def delete_song_version_api(songVersionId):
     return {'success': True, 'deleted_id': songVersionId}, 200
     
 
+    
 
 
 @app.route('/game')
