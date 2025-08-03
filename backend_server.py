@@ -10,6 +10,8 @@ from synthviz import create_video
 import json
 import re
 import yt_dlp
+import time
+
 from music21 import converter, stream, interval, key, midi
 
 import threading
@@ -66,7 +68,9 @@ fieldsModal = ["version_id", "title", "key_root", "key_mode", "picture_path", "d
 videoGenerationJobs = {}
 videoGenerationJobsLock = threading.Lock()  #Protects videoGenerationJobs map
 
-
+songUploadLock = threading.Lock()  # Ensures only one song upload is processed at a time
+uploadLockStartTime = None
+uploadLockTimeout = 60 * 5  # 5 minutes
 
 ######################################## Database functions  ########################################
 
@@ -381,30 +385,76 @@ def update_song_api():
     return '', 204
 
 
+######################################## Upload functions  ########################################
+
+
+def release_upload_lock():
+    global uploadLockStartTime
+    if songUploadLock.locked():
+        songUploadLock.release()
+    uploadLockStartTime = None
+
+@app.route('/api/tupload', methods=['POST'])
+def unlock_upload():
+    global uploadLockStartTime
+    if songUploadLock.locked():
+        release_upload_lock()
+        return jsonify({'status': 'Lock released'}), 200
+    return jsonify({'status': 'Lock was not active'}), 200
+
+
+def force_unlock_upload_if_stuck():
+    global uploadLockStartTime
+    if songUploadLock.locked() and uploadLockStartTime:
+        if time.time() - uploadLockStartTime > uploadLockTimeout:
+            print("Upload lock timeout reached — forcing release.")
+            release_upload_lock()
+
+
 
 
 @app.route('/api/upload-audio', methods=['POST'])
 def upload_audio():
-    if 'audio_file' not in request.files:
-        return jsonify({'error': 'No file uploaded'}), 400
+    force_unlock_upload_if_stuck() # Unlock if the previous job is processing for over 5 minutes
 
-    audio_file = request.files['audio_file']
-    if audio_file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
+    if not songUploadLock.acquire(blocking=False):  # try to acquire the lock without waiting (blocking=True would wait until the lock is released), if another upload is in progress return 429
+        return jsonify({"error": "Another upload job in progress"}), 429
     
-    user_id = 1 # TODO po zalogowaniu dynamicznie dodawany user
-    title = audio_file.filename #TODO dodaj funkcjonalnosc dawania tytulu - wtedy po prostu przekazuj tytul w request
-    filename = safe_filename_song(title) + '.mp3'
-    audio_path = os.path.join(UPLOAD_FOLDER, filename)
-    audio_file.save(audio_path)
+    global uploadLockStartTime
+    uploadLockStartTime = time.time()
 
+    try:
+        if 'audio_file' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
 
-    song_id = add_new_song(user_id=user_id, title=title,audio_path=audio_path) #TODO 1: dodaj picture path, po logowaniu: 
-    return jsonify({'song_id': song_id}), 200 
+        audio_file = request.files['audio_file']
+        if audio_file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+        
+        user_id = 1 # TODO po zalogowaniu dynamicznie dodawany user
+        title = audio_file.filename 
+        filename = safe_filename_song(title) + '.mp3'
+        audio_path = os.path.join(UPLOAD_FOLDER, filename)
+        audio_file.save(audio_path)
+
+        song_id = add_new_song(user_id=user_id, title=title,audio_path=audio_path) #TODO user_id
+        return jsonify({'song_id': song_id}), 200 
+    except Exception as e:
+        print("Upload audio  error:", e)
+        release_upload_lock()
+        return jsonify({'error': str(e)}), 500 # Server-side error
 
 
 @app.route('/api/download-upload-audio', methods=['POST'])
 def download_audio_yt_dlp():
+    force_unlock_upload_if_stuck() # Unlock if the previous job is processing for over 5 minutes
+
+    if not songUploadLock.acquire(blocking=False):  # try to acquire the lock without waiting (blocking=True would wait until the lock is released), if another upload is in progress return 429
+        return jsonify({"error": "Another upload job in progress"}), 429
+
+    global uploadLockStartTime
+    uploadLockStartTime = time.time()
+
     data = request.get_json()
     user_id = 1 # TODO po zalogowaniu dynamicznie dodawany user
     youtube_url = data.get('youtube_url')
@@ -413,29 +463,27 @@ def download_audio_yt_dlp():
         return jsonify({'error': 'Missing YouTube URL'}), 400
 
     try:
-        # download data (without audio - just to get the title)
+        # Download data (without audio - just to get the title)
         with yt_dlp.YoutubeDL({'quiet': True}) as ydl_info:
             info = ydl_info.extract_info(youtube_url, download=False)
-        
         video_title = info.get('title', 'unknown_title')
         title = video_title 
         safe_filename = safe_filename_song(video_title) 
         audio_path = os.path.join(UPLOAD_FOLDER, safe_filename) # without '.mp3' at the end because yt-dlp adds it 
         thumbnail_url = info.get('thumbnail')  
-
         image_path = None
+
         if thumbnail_url:
             try:
-                response = requests.get(thumbnail_url)
-                if response.status_code == 200:
+                res = requests.get(thumbnail_url)
+                if res.status_code == 200:
                     image_path = os.path.join(THUMBNAILS_FOLDER, safe_filename + '.jpg')
                     with open(image_path, 'wb') as f:
-                        f.write(response.content)
+                        f.write(res.content)
             except Exception as e:
                 print("Warning: Couldn't download thumbnail:", e)
 
-
-        #download and convert to mp3 with yt-dlp
+        # Download and convert to mp3 with yt-dlp
         ydl_opts = {
             'format': 'bestaudio',
             'outtmpl': audio_path,
@@ -446,62 +494,65 @@ def download_audio_yt_dlp():
             'quiet': True,
             'noplaylist': True,
         }
-
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([youtube_url])
-
         song_id = add_new_song(user_id=user_id, title=title,audio_path=audio_path+'.mp3',source=youtube_url,picture_path=image_path)
-
         return jsonify({'song_id': song_id, 'title':title}), 200
-
+    
     except Exception as e:
         print("YouTube download error:", e)
-        return jsonify({'error': str(e)}), 500
+        release_upload_lock()
+        return jsonify({'error': str(e)}), 500 # Server-side error
     
 
 
 @app.route('/api/convert-audio', methods=['POST'])
 def convert_audio():
-    # Prepare data
-    data = request.get_json()
-    model_name = data.get('model_name', 'transkun') # transkun is the default model
-    song_id = data.get('song_id')
-    song = get_song(song_id)
-    if not song:
-        return jsonify({'error: Song not found'})
+    try: 
+        # Prepare metadata
+        data = request.get_json()
+        model_name = data.get('model_name', 'transkun') # transkun is the default model
+        song_id = data.get('song_id')
+        song = get_song(song_id)
+        if not song:
+            raise ValueError("Song not found")
+        title = song['title']
+        audio_path = song['audio_path']
+        temp_midi_filename = f"temp_{song_id}_{model_name}.mid"
+        temp_midi_path = os.path.join(MIDI_FOLDER, temp_midi_filename)
+
+        # Audio to midi conversion     
+        if model_name == 'transkun':
+            #midi_path = transkun_predict(song_id,midi_path) # transkun saves midi_data!
+            transkun_predict(audio_path,temp_midi_path) 
+        else: 
+            model_output, midi_data, note_events = predict(audio_path, model_or_model_path=ICASSP_2022_MODEL_PATH)
+            midi_data.write(temp_midi_path)
+
+        # Song metadata analysis
+        score = converter.parse(temp_midi_path)
+        key_signature_data = score.analyze('key')
+        print(f"Tonacja: {key_signature_data.tonic.name} {key_signature_data.mode}")
+        key_root = key_signature_data.tonic.name
+        key_mode = key_signature_data.mode
+        #duration_quarterLen = score.duration.quarterLength  # liczba ćwierćnut
+        #duration = score.duration.seconds 
+        instrument = get_instrument(score)
+
+        # Rename midi file and save to database 
+        filename=safe_filename_version(title,model_name,key_root,key_mode) 
+        midi_path = os.path.join(MIDI_FOLDER, f"{filename}.mid")
+        song_version_id = add_new_song_version(song_id,model_name,key_root,key_mode,instrument,filename,midi_path)
+        os.rename(temp_midi_path, midi_path)
+        return jsonify({'title': title, 'song_version_id': song_version_id}), 200
     
-    title = song['title']
-    audio_path = song['audio_path']
+    except Exception as e:
+        print("Audio to midi converion failed:", e)
+        return jsonify({'error': str(e)}), 500 # Server-side error
+    finally:
+        release_upload_lock()
 
-    temp_midi_filename = f"temp_{song_id}_{model_name}.mid"
-    temp_midi_path = os.path.join(MIDI_FOLDER, temp_midi_filename)
-
-    # Audio to MIDI conversion     
-    if model_name == 'transkun':
-        #midi_path = transkun_predict(song_id,midi_path) # transkun saves midi_data!
-        transkun_predict(audio_path,temp_midi_path) 
-    else: 
-        model_output, midi_data, note_events = predict(audio_path, model_or_model_path=ICASSP_2022_MODEL_PATH)
-        midi_data.write(temp_midi_path)
-
-    # Song metadata analysis
-    score = converter.parse(temp_midi_path)
-    key_signature_data = score.analyze('key')
-    print(f"Tonacja: {key_signature_data.tonic.name} {key_signature_data.mode}")
-    key_root = key_signature_data.tonic.name
-    key_mode = key_signature_data.mode
-    #duration_quarterLen = score.duration.quarterLength  # liczba ćwierćnut
-    #duration = score.duration.seconds 
-    instrument = get_instrument(score)
-
-    # Rename midi file and save to database 
-    filename=safe_filename_version(title,model_name,key_root,key_mode) 
-    midi_path = os.path.join(MIDI_FOLDER, f"{filename}.mid")
-    song_version_id = add_new_song_version(song_id,model_name,key_root,key_mode,instrument,filename,midi_path)
-    os.rename(temp_midi_path, midi_path)
-
-
-    return jsonify({'title': title, 'song_version_id': song_version_id}), 200
+########################################################################################################################
 
 
 def generate_video(songVersionId):
@@ -552,10 +603,10 @@ def get_video():
             video_was_generated = True
 
         except RuntimeError as e:
-            return error_response(409, str(e))  # Conflict: another job is running
+            return error_response(429, str(e))  # Conflict: another job is running
         except Exception as e:
-            return error_response(500, f'Failed to generate video: {str(e)}')
-
+            return error_response(500, f'Failed to generate video: {str(e)}') # Server-side error
+ 
         # Get video_path from the database 
         row = get_song_versions(fields=['video_path'], version_id=songVersionId)
         video_path = row.get('video_path') if row else None
@@ -591,8 +642,8 @@ def get_musicxml():
             update_song_version(songVersionId, musicxml_path=musicxml_path)
         except Exception as e:
             print(f"Error during conversion: {e}")
-            return jsonify({'error': 'Failed to convert MIDI to MusicXML', 'details': str(e)}), 500
-
+            return jsonify({'error': 'Failed to convert MIDI to MusicXML', 'details': str(e)}), 500 # Server-side error
+        
     return send_file(musicxml_path, download_name = filename)
 
 
@@ -622,7 +673,7 @@ def get_pdf():
             update_song_version(songVersionId, pdf_path=str(pdf_path))
         except Exception as e:
             print(f"Error during conversion: {e}")
-            return jsonify({'error': 'Failed to convert MIDI to PDF', 'details': str(e)}), 500
+            return jsonify({'error': 'Failed to convert MIDI to PDF', 'details': str(e)}), 500 # Server-side error
 
     return send_file(pdf_path, as_attachment=True, download_name = filename)
 

@@ -207,12 +207,12 @@
                 <h2>Upload a File</h2>
                 <form id="upload-form">
                     <input type="file" id="audio-file" accept="audio/*" required class="w3-input w3-border w3-margin-bottom">
-                    <button type="button" id="button-upload-file" class="w3-button w3-black" onclick="upload_file()" style="margin-bottom: 20px;">Upload a File</button>
+                    <button type="button" id="button-upload-file" class="w3-button w3-black" onclick="add_song()" style="margin-bottom: 20px;">Add song from file</button>
                 </form>
                 <!-- upload from a youtube link  -->
                 <h2 for="youtube-url">Or Paste a YouTube URL:</h2>
                 <input type="text" id="youtube-url" class="w3-input w3-border w3-margin-bottom" placeholder="https://www.youtube.com/watch?v=...">
-                <button type="button" class="w3-button w3-black" onclick="upload_file_youtube()">Upload from YouTube</button>
+                <button type="button" class="w3-button w3-black" onclick="add_song_youtube()">Add song fom YouTube</button>
                 <!--upload status message box-->
                 <p id="upload-status" class="w3-large w3-text-grey" style="display: none;">
                     .
@@ -624,6 +624,20 @@
         }
 
 
+
+        async function unlock_new_song_lock() {
+            try {
+                const res = await fetch('http://localhost:8000/api/unlock-upload', {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                console.log('[unlock_new_song_lock] Server response:', data.status);
+            } catch (err) {
+                console.error('[unlock_new_song_lock] Failed to unlock upload:', err);
+            }
+        }
+
+
         async function convert_file(song_id) {
             const modelSelect = document.getElementById('model-select');
             const dataApi = {
@@ -632,16 +646,20 @@
             };
 
             try {
-                const response = await fetch('http://localhost:8000/api/convert-audio', {
+                const res = await fetch('http://localhost:8000/api/convert-audio', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(dataApi)
                 });
-                const data = await response.json();
-                if (response.ok && data.title) {
-                    //currentSong = data.song_version_id;
+                if (!res.ok) {
+                    const text = await res.text();  
+                    throw new Error(`HTTP ${res.status} – ${text}`);
+                }
+
+                const data = await res.json();
+                if (data.title) {
                     load_song_list();
                     load_songs_gallery();
                     show_user_message(`The song "${data.title}" was converted successfully.`);
@@ -652,14 +670,16 @@
                 }
             } catch (error) {
                 console.error('Conversion failed:', error);
+                await unlock_new_song_lock();  
                 show_user_message(`Conversion failed: ${error.message}`, true);
             }
         }
 
 
-        async function upload_file() {
+        async function add_song() {
             const fileInput = document.getElementById('audio-file');
             const statusText = document.getElementById('upload-status');
+            let cleanStatusText = true
 
             const file = fileInput.files[0];
             if (!file) {
@@ -670,16 +690,28 @@
             const formData = new FormData();
             formData.append('audio_file', file);
 
-            statusText.style.display = 'flex';
-            statusText.innerHTML = get_status_spinner_message_html(`Uploading file: ${file.name} ... please wait`)
-
             try {
-                const response = await fetch('http://localhost:8000/api/upload-audio', {
+                const res = await fetch('http://localhost:8000/api/upload-audio', {
                     method: 'POST',
                     body: formData
                 });
-                const data = await response.json();
-                if (response.ok && data.song_id) {
+                
+                if (!res.ok) {
+                    if (res.status === 429) {
+                        console.log("Another upload is already in progress (429). Upload canceled.");
+                        show_user_message("Another song is currently being uploaded. Please wait and try again when it's done.", true);
+                        cleanStatusText=false
+                        return; // Another upload job is in progress — stop this one
+                    }
+                    const text = await res.text(); 
+                    throw new Error(`HTTP ${res.status} – ${text}`);
+                }
+
+                statusText.style.display = 'flex';
+                statusText.innerHTML = get_status_spinner_message_html(`Uploading file: ${file.name} ... please wait`)
+
+                const data = await res.json();
+                if (data.song_id) {
                     statusText.innerHTML = get_status_spinner_message_html(`Transcribing the file: ${file.name} ... please wait`)
                     await convert_file(data.song_id);
                 } else {
@@ -688,26 +720,28 @@
             } catch (err) {
                 console.error('Upload failed:', err);
                 show_user_message(`Upload failed: ${err.message}`, true);
+                await unlock_new_song_lock();  
             } finally {
-                statusText.innerHTML = ``;
-                statusText.style.display='none';
+                if (cleanStatusText){
+                 statusText.innerHTML = ``;
+                 statusText.style.display='none';
+                }
             }
         }
 
 
-        async function upload_file_youtube() {
+        async function add_song_youtube() {
             const url = document.getElementById('youtube-url').value;
             const statusText = document.getElementById('upload-status');
+            let cleanStatusText = true
 
             if (!url) {
                 alert('Please enter a YouTube link.');
                 return;
             }
-            statusText.style.display = 'flex';
-            statusText.innerHTML = get_status_spinner_message_html(`Downloading song from: ${url} ... please wait`);
 
             try {
-                const response = await fetch('http://localhost:8000/api/download-upload-audio', {
+                const res = await fetch('http://localhost:8000/api/download-upload-audio', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -717,8 +751,22 @@
                     })
                 });
 
-                const data = await response.json();
-                if (response.ok && data.song_id) {
+                if (!res.ok) {
+                    if (res.status === 429) {
+                        cleanStatusText = false
+                        console.log("Another upload is already in progress (429). Upload canceled.");
+                        show_user_message("Another song is currently being uploaded. Please wait and try again.", true);
+                        return; // Another upload job is in progress — stop this one
+                    }
+                    const text = await res.text();  
+                    throw new Error(`HTTP ${res.status} – ${text}`);
+                }
+
+                statusText.style.display = 'flex';
+                statusText.innerHTML = get_status_spinner_message_html(`Downloading song from: ${url} ... please wait`);
+
+                const data = await res.json();
+                if (data.song_id) {
                     statusText.innerHTML = get_status_spinner_message_html(`Transcribing the song: ${data.title} ... please wait`);
                     await convert_file(data.song_id);
                 } else {
@@ -727,22 +775,30 @@
             } catch (err) {
                 console.error('Upload failed:', err);
                 show_user_message(`Upload failed: ${err.message}`, true);
+                await unlock_new_song_lock();  
+
             }
             finally {
-                statusText.innerHTML = ``;
-                statusText.style.display='none';
+                if (cleanStatusText){
+                 statusText.innerHTML = ``;
+                 statusText.style.display='none';
+                }
             }
         }
 
-        async function waitForVideo(url, retries = 15, delay = 4000) {
+
+
+        
+
+        async function wait_for_video(url, retries = 15, delay = 4000) {
             for (let i = 0; i < retries; i++) {
                 try {
                     const res = await fetch(url, { method: 'HEAD' });
-                    if (res.ok || res.status === 409){ 
+                    if (res.ok || res.status === 429){ 
                         return res;
                     }
                     if (res.status === 500) {
-                        console.warn(`[waitForVideo] Server error 500 at attempt ${i + 1}`);
+                        console.warn(`[wait_for_video] Server error 500 at attempt ${i + 1}`);
                     }
                 } catch (e) {
                     console.warn("HEAD request failed", e);
@@ -773,26 +829,27 @@
             statusText.innerHTML = get_status_spinner_message_html(`Generating video... please wait`);
 
             try {
-                let videoUrl = `http://localhost:8000/api/get-video?song_version_id=${currentSong}`;
+                let videoUrl = `http://localhost:8000/api/get-video?song_version_id=${currentSong}`; 
+                
+                //refresh by adding timestamp
                 if (forceReload) {
-                    videoUrl += `&t=${Date.now()}`; // force refresh by adding timestamp
+                    videoUrl += `&t=${Date.now()}`; // forc
                 }
 
-                const res = await waitForVideo(videoUrl);
+                const res = await wait_for_video(videoUrl);
                 if (!res) {
                     statusText.innerHTML = `<span style="color: red;">Video generation timed out.</span>`;
                     return;
                 }
 
-                 if (res.status === 409) {
-                    console.log("Video is already generating (409). Waiting...");
+                 if (res.status === 429) {
+                    console.log("Video is already generating (429). Waiting...");
                     return; // There is another job generating video for the song. The other job will load the video. So we can simply end this job here.
                 }
                  source.src = videoUrl;
                 video.load();
                 
-                if (res.status === 201) { //backend generated new video and it probably took a while - show message to the user 
-
+                if (res.status === 201) { // A new video was generated by the backend (likely a time-consuming operation) — inform the user
                     const songUrl = `http://localhost:8000/api/get-song-version/${currVersionId}`;
                     const resSongVersion = await fetch(songUrl);
                     const data = await resSongVersion.json();
