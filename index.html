@@ -282,7 +282,7 @@
     <div id="manage-modal" class="w3-modal" style="z-index: 1000;">
         <div class="w3-modal-content w3-card-4" style="max-width: 600px;">
             <header class="w3-container w3-black">
-                <span onclick="close_edit_modal()" class="w3-button w3-display-topright">&times;</span>
+                <span onclick="close_manage_modal()" class="w3-button w3-display-topright">&times;</span>
                 <h3>Edit Song Version</h3>
             </header>
             <div class="w3-container w3-padding">
@@ -438,6 +438,7 @@
             const container = document.getElementById('songs-gallery');
             container.innerHTML = '<p>Loading songs...</p>';
 
+            
             try {
                 const res = await fetch('http://localhost:8000/api/get-songs-list-gallery');
                 const songs = await res.json();
@@ -449,6 +450,8 @@
                 }
 
                 songs.forEach(song => {
+                    console.log("Creating manage button for version:", song.version_id);
+
                     const songContainer = document.createElement('div');
                     songContainer.className = 'song-cart';
 
@@ -503,10 +506,11 @@
         }
 
 
-        function manage_song(versionId) { //displays "manage_song modal"
+        function manage_song(versionId) { //displays "manage_song modal"s
             fetch(`http://localhost:8000/api/get-song-version/${versionId}`)
                 .then(res => res.json())
                 .then(song => {
+                    //console.log(manage_song("called with song.version_id:", song.version_id)
                     document.getElementById('manage-version-id').value = song.version_id;
                     document.getElementById('manage-title').value = song.title || '';
                     document.getElementById('manage-key-root').value = song.key_root || '';
@@ -524,8 +528,6 @@
 
 
         async function save_song(asNewVersion = false) {
-            
-        
             const data = {
                 version_id: document.getElementById('manage-version-id').value,
                 title_version: document.getElementById('manage-title').value,
@@ -548,7 +550,7 @@
 
                 if (!res.ok) throw new Error("Update failed");
 
-                close_edit_modal();
+                close_manage_modal();
                 load_songs_gallery();
                 show_user_message("Song version updated successfully.");
 
@@ -565,8 +567,12 @@
         }
 
 
-        function delete_song(asNewVersion = false) {
+        function delete_song() {
             const versionId = document.getElementById('manage-version-id').value;
+            console.log(versionId)
+            console.log("AAAAAASFSAFSAFSAFASFASF!!!!!!!!")
+            console.log(versionId)
+
 
             fetch(`http://localhost:8000/api/delete-song-version/${versionId}`, {
                 method: 'DELETE'
@@ -578,7 +584,7 @@
                 return res.json();
             })
             .then(() => {
-                close_edit_modal();
+                close_manage_modal();
                 load_songs_gallery();
                 show_user_message("Song version deleted successfully.");
             })
@@ -590,7 +596,7 @@
 
 
 
-        function close_edit_modal() {
+        function close_manage_modal() {
             document.getElementById('manage-modal').style.display = 'none';
         }
 
@@ -622,6 +628,7 @@
                 msgBox.style.display = 'none';
             }, 5000); //dissapear after 5 sec
         }
+
 
 
 
@@ -706,9 +713,9 @@
                     const text = await res.text(); 
                     throw new Error(`HTTP ${res.status} – ${text}`);
                 }
-
                 statusText.style.display = 'flex';
                 statusText.innerHTML = get_status_spinner_message_html(`Uploading file: ${file.name} ... please wait`)
+
 
                 const data = await res.json();
                 if (data.song_id) {
@@ -740,7 +747,12 @@
                 return;
             }
 
+
             try {
+                
+                statusText.style.display = 'flex';
+                statusText.innerHTML = get_status_spinner_message_html(`Downloading song from: ${url} ... please wait`);
+
                 const res = await fetch('http://localhost:8000/api/download-upload-audio', {
                     method: 'POST',
                     headers: {
@@ -762,8 +774,6 @@
                     throw new Error(`HTTP ${res.status} – ${text}`);
                 }
 
-                statusText.style.display = 'flex';
-                statusText.innerHTML = get_status_spinner_message_html(`Downloading song from: ${url} ... please wait`);
 
                 const data = await res.json();
                 if (data.song_id) {
@@ -790,6 +800,8 @@
 
         
 
+
+
         async function wait_for_video(url, retries = 15, delay = 4000) {
             for (let i = 0; i < retries; i++) {
                 try {
@@ -814,7 +826,7 @@
                 return;
             }
             console.log("[generate_training_video]")
-            currVersionId= currentSong
+            const currVersionId= currentSong
 
             const statusText = document.getElementById('video-status');
             const container = document.getElementById('video-container');
@@ -828,12 +840,11 @@
             container.style.display = 'none';
             statusText.innerHTML = get_status_spinner_message_html(`Generating video... please wait`);
 
+
             try {
-                let videoUrl = `http://localhost:8000/api/get-video?song_version_id=${currentSong}`; 
-                
-                //refresh by adding timestamp
+                let videoUrl = `http://localhost:8000/api/get-video?song_version_id=${currentSong}`;
                 if (forceReload) {
-                    videoUrl += `&t=${Date.now()}`; // forc
+                    videoUrl += `&t=${Date.now()}`; // force refresh by adding timestamp
                 }
 
                 const res = await wait_for_video(videoUrl);
@@ -850,7 +861,7 @@
                 video.load();
                 
                 if (res.status === 201) { // A new video was generated by the backend (likely a time-consuming operation) — inform the user
-                    const songUrl = `http://localhost:8000/api/get-song-version/${currVersionId}`;
+                    const songUrl = `http://localhost:8000/api/get-song-version-title/${currVersionId}`;
                     const resSongVersion = await fetch(songUrl);
                     const data = await resSongVersion.json();
                     if (!resSongVersion.ok || !data.success) {

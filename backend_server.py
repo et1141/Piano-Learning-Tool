@@ -181,9 +181,20 @@ def get_song_versions(fields=None, version_id=None):
     return [dict(row) for row in rows]
 
 
-
 @app.route('/api/get-song-version/<int:songVersionId>')
 def get_song_version_api(songVersionId):
+    song_version = get_song_versions(fields=fieldsModal, version_id=songVersionId)
+
+    if song_version:
+        print(song_version)
+        return song_version, 200
+
+    return {'error': 'Not found'}, 404
+
+@app.route('/api/get-song-version-title/<int:songVersionId>')
+
+
+def get_song_version_title_api(songVersionId):
     song_version = get_song_versions(fields=fieldsModal, version_id=songVersionId)
 
     if song_version:
@@ -192,13 +203,6 @@ def get_song_version_api(songVersionId):
 
     return {'error': 'Not found'}, 404
 
-#@app.route('/api/get-song-title/<int:songVersionId>', methods=['GET'])
-#def get_song_version_api(songVersionId):
-#    row = get_song_versions(fields=['title'], version_id=songVersionId)
-#    title = row.get('title') if row else None
-#    if not title:
-#        return {'error': 'Not found'}, 404
-#    return {'success': True, 'title': title}, 200
     
 
 def get_table(table):
