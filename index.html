@@ -159,11 +159,33 @@
             flex-wrap: wrap;
         }
         
-        .song-buttons button {
-            flex: 1 1 45%;
-            /* 2 przyciski na rząd */
+        .song-buttons button {  
+            flex: 1 1 45%; /* 2 buttons in a row na*/
         }
+
+
+    @media screen and (max-width: 768px) {
+    .w3-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    height: auto !important;
+    
+}
+
+
+    /* hide "Piano Learning Tool"*/
+    .w3-title {
+        display: none !important;
+    }
+    }
+      .w3-content {
+    margin-top: 92px !important; /* lub więcej, jeśli navbar ma 2 rzędy */
+  }
     </style>
+
+    
 </head>
 
 <body>
@@ -178,7 +200,7 @@
             <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('game')">Game</a>
             <span class="w3-bar-item w3-title w3-right">Piano Learning Tool</span>
             <!-- Songs dropdown -->
-            <div class="w3-dropdown-hover w3-hide-small">
+            <div class="w3-dropdown-hover">
                 <button class="w3-padding-large w3-button" title="Songs" onmouseover="load_song_list()" onclick="show_section('songs')">
                     Songs <i class="fa fa-caret-down  w3-padding-small"></i>
                 </button>
@@ -187,13 +209,13 @@
         </div>
     </div>
     
-    <!-- User Message Panel-->
-    <div id="user-message" class="w3-panel" style="margin-top: 42px; text-align: center;  display: none;"></div>
-
-
     <!-- Sections -->
     <div class="w3-content" style="margin-top:46px">
         
+        <!-- User Message Panel-->
+        <div id="user-message" class="w3-panel" style="margin-top: 54px; text-align: center;  display: none;"></div>
+
+
         <!-- Upload Section -->
         <div id="upload" class="section active-section">
             <div class="w3-container">
@@ -329,7 +351,10 @@
 
     <script>
         let currentSong = null; // song_id
-        let currentSection = null
+        let currentSection = null;
+        let wasMusicXmlClicked = false;         
+        let wasSheetMusicClicked = false; 
+
 
 
         function get_status_spinner_message_html(message){
@@ -395,14 +420,12 @@
 
                     const version_id = song.version_id
                     const title = song.title
-                    //console.log(song)
-                    //console.log('ASFAFSFAS')
 
                     const item = document.createElement('a');
                     item.href = '#';
                     item.className = 'w3-bar-item w3-button';
 
-                    //cut long name
+                    // cut long name
                     // const maxLength = 30;
                     // const displayName = song.length > maxLength ? song.slice(0, maxLength - 6) + '....mid' : song;
                     item.innerText = title;
@@ -438,7 +461,6 @@
             const container = document.getElementById('songs-gallery');
             container.innerHTML = '<p>Loading songs...</p>';
 
-            
             try {
                 const res = await fetch('http://localhost:8000/api/get-songs-list-gallery');
                 const songs = await res.json();
@@ -450,8 +472,6 @@
                 }
 
                 songs.forEach(song => {
-                    console.log("Creating manage button for version:", song.version_id);
-
                     const songContainer = document.createElement('div');
                     songContainer.className = 'song-cart';
 
@@ -478,9 +498,8 @@
                                     <div class="song-buttons">
                                         ${selectBtnHTML}
                                         <button onclick="manage_song('${song.version_id}')">Manage</button>
-                                        <button onclick="download_song_xml('${song.version_id}')">MusicXML</button>
+                                        <button onclick="download_song_xml('${song.version_id}', event)">MusicXML</button>
                                         <button onclick="download_song_pdf('${song.version_id}')">Sheet Music</button>
-
                                 </div>
                                 </div>
                             </div>
@@ -494,6 +513,24 @@
             }
         }
 
+        function show_user_message(message, isError = false) {
+            const msgBox = document.getElementById('user-message');
+            msgBox.className = isError ? 'w3-panel w3-red' : 'w3-panel w3-green';
+            msgBox.textContent = message;
+            msgBox.style.display = 'block';
+            //msgBox.style.paddingTop='42px';
+
+            // Scroll to top to ensure the user-message is visible  in long sections (songs)
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+
+            //dissapear after 5 sec
+            setTimeout(() => {
+                msgBox.style.display = 'none';
+            }, 5000); 
+        }
 
         function select_song(versionId) {
             console.log("HELLO FROM SELECT_SONG")
@@ -602,32 +639,43 @@
 
 
 
-        function download_song_xml(versionId) {
+        function download_song_xml(versionId,event) {
+                const button = event.target;
+
+            if (button.dataset.cooldown === 'true') {
+                show_user_message("The button was clicked within the last 10 seconds. Your MusicXML file is currently generating and should download shortly", true)
+                return;
+            }
+            button.dataset.cooldown = 'true';
             const xmlUrl = `http://localhost:8000/api/get-musicxml?song_version_id=${versionId}`;
             const link = document.createElement('a');
             link.href = xmlUrl;
-            link.download = '';
             link.click();
+
+            setTimeout(() => {
+                button.dataset.cooldown = 'false';
+            }, 7000);
         }
 
+
+        
+
         function download_song_pdf(versionId) {
+            if (wasSheetMusicClicked){
+                show_user_message("The button was clicked within the last 10 seconds. Your music sheet file is currently generating and should download shortly", true)
+                return;
+            }
             const pdfUrl = `http://localhost:8000/api/get-pdf?song_version_id=${versionId}`;
             const link = document.createElement('a');
             link.href = pdfUrl;
             link.download = '';
             link.click();
-        }
-
-
-        function show_user_message(message, isError = false) {
-            const msgBox = document.getElementById('user-message');
-            msgBox.className = isError ? 'w3-panel w3-red' : 'w3-panel w3-green';
-            msgBox.textContent = message;
-            msgBox.style.display = 'block';
             setTimeout(() => {
-                msgBox.style.display = 'none';
-            }, 5000); //dissapear after 5 sec
+                wasSheetMusicClicked = false;
+            }, 10000); //block the button for 10 seconds
         }
+
+
 
 
 
@@ -795,11 +843,6 @@
                 }
             }
         }
-
-
-
-        
-
 
 
         async function wait_for_video(url, retries = 15, delay = 4000) {

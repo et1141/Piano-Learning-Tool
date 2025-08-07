@@ -633,11 +633,10 @@ def get_musicxml():
 
     row = get_song_versions(fields=['musicxml_path','midi_path','filename'], version_id=songVersionId)
     musicxml_path = row.get('musicxml_path') if row else None
-    filename = ''
+    filename = row.get('filename') + '.musicxml'
 
     if not musicxml_path or not os.path.exists(musicxml_path):
         midi_path = row.get('midi_path') 
-        filename = row.get('filename')+'.musicxml'
         musicxml_path = os.path.join(XML_FOLDER, filename)
         try:
             s = converter.parse(midi_path)
@@ -659,12 +658,12 @@ def get_pdf():
 
     row = get_song_versions(fields=['pdf_path','midi_path','filename'], version_id=songVersionId)
     pdf_path = row.get('pdf_path') if row else None
-    filename = ''
-
+    filename_base = row.get('filename') 
+    filename = filename_base + '.pdf'
+    
     if not pdf_path or not os.path.exists(pdf_path):
         midi_path = row.get('midi_path') 
-        filename_base = row.get('filename') 
-        filename = filename_base + '.pdf'
+
         output_path = os.path.join(PDF_FOLDER, filename_base) #without .pdf
         
         try:
