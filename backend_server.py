@@ -230,13 +230,36 @@ def map_song_versions_field_name(field): #this function is only used by update_s
         return 'title_version'
     return field
 
+def update_song(songId, **kwargs):
+    if not kwargs:
+        return  # nic do aktualizacji
+    for f in kwargs:
+        if f not in allowedFieldsSongs:
+            raise ValueError(f"Unrecognized field for update: {f}")
+        
+    fields = ', '.join(f"{f} = ?" for f in kwargs)
+    values = list(kwargs.values())
+    values.append(songId)  # dodaj ID na końcu do WHERE
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(f'''
+        UPDATE songs
+        SET {fields}
+
+        WHERE song_id = ?
+    ''', values)
+
+    conn.commit()
+    conn.close()
+
 
 def update_song_version(songVersionId, **kwargs):
     if not kwargs:
-        return  # nic do aktualizacji
-    print("\n\n####################### hello from update_song_version #######################\n"+str(kwargs)+"\n\n")
+        return  
+
     for f in kwargs:
-        if f not in allowedFields:
+        if f not in allowedFieldsSongVersions:
             raise ValueError(f"Unrecognized field for update: {f}")
         
     fields = ', '.join(f"{map_song_versions_field_name(f)} = ?" for f in kwargs)
@@ -284,7 +307,6 @@ def safe_filename_version(title,model_name,key_root,key_mode):
 
 
 def transkun_predict(audio_path,midi_path):
-
     try:
         subprocess.run(['transkun', audio_path, midi_path], check=True)
     except subprocess.CalledProcessError as e:
@@ -367,20 +389,21 @@ def get_midi_files_gallery():
 
 
 @app.route('/api/update-song', methods=['POST'])
-def update_song_api():
+def update_version_song_api():
     data = request.get_json()
 
     saveAsNew = data.pop('save_as_new',None)
     print(saveAsNew)
 
-    print(" \n\n####################### hello from update_song_API####################### \n" +str(data)+"\n\n")
 
     song_version_data_map={}
     song_version_id = data.get('version_id')
     for f in data:
-        if map_song_versions_field_name(f) in allowedFieldsSongVersions: 
-            song_version_data_map[f] = data[f]
+        mapped_field = map_song_versions_field_name(f)
+        if mapped_field in allowedFieldsSongVersions: 
+            song_version_data_map[mapped_field] = data[f]
     
+
     song_version = get_song_versions(fields=['key_root'], version_id=song_version_id)
     curr_key = song_version.get('key_root')
     new_key = data.get('key_root')
@@ -400,7 +423,6 @@ def update_song_api():
                 except Exception as e:
                     print(f"Error deleting file {song_version[f]}: {e}")
             song_version_data_map[f] = '' 
-
     update_song_version(song_version_id, **song_version_data_map)
     return '', 204
 
@@ -521,7 +543,7 @@ def download_audio_yt_dlp():
             ydl.download([youtube_url])
         song_id = add_new_song(user_id=user_id, title=title,audio_path=audio_path+'.mp3',source=youtube_url,picture_path=image_path,duration=duration_seconds)
         return jsonify({'song_id': song_id, 'title':title}), 200
-    
+     
     except Exception as e:
         print("YouTube download error:", e)
         release_upload_lock()
@@ -558,8 +580,6 @@ def convert_audio():
         print(f"Tonacja: {key_signature_data.tonic.name} {key_signature_data.mode}")
         key_root = key_signature_data.tonic.name
         key_mode = key_signature_data.mode
-        #duration_quarterLen = score.duration.quarterLength  # liczba ćwierćnut
-        #duration = score.duration.seconds 
         instrument = get_instrument(score)
 
         # Rename midi file and save to database 
@@ -567,6 +587,8 @@ def convert_audio():
         midi_path = os.path.join(MIDI_FOLDER, f"{filename}.mid")
         song_version_id = add_new_song_version(song_id,model_name,key_root,key_mode,instrument,filename,midi_path)
         os.rename(temp_midi_path, midi_path)
+        update_song(song_id,original_key_root=key_root,original_key_mode=key_mode)
+    
         return jsonify({'title': title, 'song_version_id': song_version_id}), 200
     
     except Exception as e:
