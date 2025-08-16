@@ -929,100 +929,102 @@
   
 
 
+</script>
 
-        // ****************************************************** Note detect part ******************************************************
-        let audioContext, analyser, microphone, dataArray, animationId;
-        let isListening = false;
+<script type="module">
+  import { PitchDetector } from "https://esm.sh/pitchy@4";
 
-        async function toggle_listening() {
-            const button = document.getElementById('listen-button');
+  // ****************************************************** Note detect part ******************************************************
+  let audioContext, analyserNode, microphone, timeData, detector, animationId;
+  let isListening = false;
 
-            if (isListening) {
-                stop_listening();
-                button.textContent = 'Start Listening';
-            } else {
-                await start_listening();
-                button.textContent = 'Stop Listening';
-            }
-        }
+  //hysterasis for stable UI
+  let lastMidi = null;
+  let stableMidi = null;
+  let sameCount = 0;
 
-        async function start_listening() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    audio: true
-                });
-                audioContext = new(window.AudioContext || window.webkitAudioContext)();
-                analyser = audioContext.createAnalyser();
-                microphone = audioContext.createMediaStreamSource(stream);
-                microphone.connect(analyser);
-                analyser.fftSize = 2048;
+  window.toggle_listening = async function toggle_listening() {
+    const button = document.getElementById('listen-button');
+    if (isListening) {
+      stop_listening();
+      button.textContent = 'Start Listening';
+    } else {
+      await start_listening();
+      button.textContent = 'Stop Listening';
+    }
+  }
 
-                const bufferLength = analyser.frequencyBinCount;
-                dataArray = new Float32Array(bufferLength);
+  //https://developer.mozislla.org/en-US/docs/Web/API/BaseAudioContext/createAnalyser
+  async function start_listening() { 
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      microphone = stream;
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      await audioContext.resume(); // Chrome wymaga interakcji
 
-                isListening = true;
-                listen_loop();
-            } catch (err) {
-                console.error('Microphone access error:', err);
-            }
-        }
+      const src = audioContext.createMediaStreamSource(stream);
+      analyserNode = audioContext.createAnalyser(); 
+      analyserNode.fftSize = 2048;             
+      src.connect(analyserNode);
 
-        function stop_listening() {
-            if (animationId) {
-                cancelAnimationFrame(animationId);
-            }
-            if (audioContext) {
-                audioContext.close();
-            }
-            document.getElementById('note-display').textContent = 'Nuta: --';
-            isListening = false;
-        }
+      timeData = new Float32Array(analyserNode.fftSize);
+      detector = PitchDetector.forFloat32Array(analyserNode.fftSize);
+      
+      lastMidi = stableMidi = null;
+      sameCount=0;
 
-        function listen_loop() {
-            analyser.getFloatFrequencyData(dataArray);
+      isListening = true;
+      listen_loop();
+    } catch (err) {
+      console.error('Microphone access error:', err);
+    }
+  }
 
-            const note = detect_note_from_fft(dataArray, audioContext.sampleRate);
-            document.getElementById('note-display').textContent = 'Nuta: ' + (note || '--');
+  function stop_listening() {
+    if (animationId) cancelAnimationFrame(animationId);
+    if (audioContext) audioContext.close();
+    if (microphone) microphone.getTracks().forEach(track => track.stop()); 
+    document.getElementById('note-display').textContent = '';
+    isListening = false;
+  }
 
-            if (isListening) {
-                animationId = requestAnimationFrame(listen_loop);
-            }
-        }
+  function listen_loop() { 
+    analyserNode.getFloatTimeDomainData(timeData);
 
-        function detect_note_from_fft(dataArray, sampleRate) {
-            let maxVal = -Infinity;
-            let maxIndex = -1;
+    const [freq, clarity] = detector.findPitch(timeData, audioContext.sampleRate);
+    let midi = null 
+    if (Number.isFinite(freq) && clarity >= 0.8) {
+        midi = hz_to_midi_number(freq)
+    }
+    
+    //hysterasis:
+    if (midi != null && midi === lastMidi) {
+        sameCount++;
+    }else {
+        sameCount = 0;
+    }
+    lastMidi = midi;
 
-            for (let i = 0; i < dataArray.length; i++) {
-                if (dataArray[i] > maxVal) {
-                    maxVal = dataArray[i];
-                    maxIndex = i;
-                }
-            }
+    //console.log(freq);
+    if (sameCount>=4 && midi !==stableMidi){
+        stableMidi=midi;
+        document.getElementById('note-display').textContent = 'Last Played Note: ' + (midi != null ? midi_number_to_note_name(midi) : '');
+    }
 
-            // Próg: jeśli sygnał za słaby, zwróć null
-            if (maxVal < -60) {
-                return null;
-            }
+    if (isListening) animationId = requestAnimationFrame(listen_loop);
+  }
 
-            const frequency = maxIndex * sampleRate / (2 * dataArray.length);
-            return frequency_to_note_name(frequency);
-        }
-
-        function frequency_to_note_name(freq) {
-            if (freq < 20 || freq > 5000) return null;
-
-            const noteStrings = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-            const A4 = 440;
-            const semitones = 12 * Math.log2(freq / A4);
-            const noteIndex = Math.round(semitones) + 57; // A4 = index 57
-            const noteName = noteStrings[noteIndex % 12];
-            const octave = Math.floor(noteIndex / 12);
-            return `${noteName}${octave}`;
-        }
-
-        // ************************************************************************************************************************
-    </script>
+  //https://inspiredacoustics.com/en/MIDI_note_numbers_and_center_frequencies
+  function hz_to_midi_number(f){ return f>0 ? Math.round(69 + 12*Math.log2(f/440)) : null; }
+  function midi_number_to_note_name(n){
+    if (n == null) return null;
+    const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    const name = names[n % 12];
+    const octave = Math.floor(n / 12) - 1; //69 -> A4
+    return `${name}${octave}`;
+  }
+  
+</script>
 
 </body>
 

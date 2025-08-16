@@ -333,6 +333,13 @@ def transpose_key_root(midi_path, new_key, curr_key=None):
 
 ########################################################################################################################
 
+@app.route("/")
+def serve_index():
+    return send_from_directory(".", "index.html")
+
+@app.route("/<path:path>")
+def serve_static(path):
+    return send_from_directory(".", path)
 
 @app.route('/api/get-songs-list-dropdown', methods=['GET'])
 def get_midi_files_dropdown():
