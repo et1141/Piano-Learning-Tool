@@ -456,7 +456,13 @@
             }
         }
 
-
+        function formatDuration(seconds) {
+            if (!seconds || isNaN(seconds)) return "--";
+            const total = Math.round(seconds);  
+            const mins = Math.floor(total / 60);
+            const secs = total % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
         async function load_songs_gallery() {
             const container = document.getElementById('songs-gallery');
             container.innerHTML = '<p>Loading songs...</p>';
@@ -492,7 +498,7 @@
                                 <div class="song-info">
                                 <h3>${song.title}</h3>
                                 ${descriptionHTML}
-                                <p><strong>Duration:</strong> ${song.duration || '--'}</p>
+                                <p><strong>Duration:</strong> ${formatDuration(song.duration)}</p>
                                     ${keyHTML}
                                 ${sourceHTML}
                                     <div class="song-buttons">

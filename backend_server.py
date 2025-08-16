@@ -52,11 +52,11 @@ os.makedirs(PDF_FOLDER, exist_ok=True)
 os.makedirs(THUMBNAILS_FOLDER, exist_ok=True)
 
 
-allowedFieldsSongs = {'song_id','user_id','title','audio_path', 'source','picture_path', 
+allowedFieldsSongs = {'song_id','user_id','title','audio_path', 'source','duration','picture_path', 
                        'original_key_root','original_key_mode','uploaded_date',}
                 
 allowedFieldsSongVersions= {'version_id', 'song_id', 'model_name','title_version','key_root', 'key_mode','instrument' , 
-                              'filename',  'duration' ,'midi_path' ,'pdf_path', 'musicxml_path', 'video_path','picture_version_path',
+                              'filename' ,'midi_path' ,'pdf_path', 'musicxml_path', 'video_path','picture_version_path',
                               'description', 'created_at','is_public'}
 allowedFields = allowedFieldsSongs | allowedFieldsSongVersions
 fieldsToDeleteOnMidiChange = ['pdf_path', 'musicxml_path', 'video_path']
@@ -294,6 +294,15 @@ def transkun_predict(audio_path,midi_path):
 
 
 ################################################## Music functions  ##################################################
+
+def get_duration_ffmpeg(path):
+    result = subprocess.run(
+        ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", path],
+        capture_output=True, text=True
+    )
+    meta = json.loads(result.stdout)
+    return float(meta["format"]["duration"])
+
 def get_instrument(score):
     instruments = list(score.recurse().getElementsByClass('Instrument'))
     # Wybierz pierwszy niepusty instrument
@@ -447,8 +456,9 @@ def upload_audio():
         filename = safe_filename_song(title) + '.mp3'
         audio_path = os.path.join(UPLOAD_FOLDER, filename)
         audio_file.save(audio_path)
-
-        song_id = add_new_song(user_id=user_id, title=title,audio_path=audio_path) #TODO user_id
+        duration_seconds = get_duration_ffmpeg(audio_path)
+         
+        song_id = add_new_song(user_id=user_id, title=title,audio_path=audio_path,duration=duration_seconds)
         return jsonify({'song_id': song_id}), 200 
     except Exception as e:
         print("Upload audio  error:", e)
@@ -478,6 +488,8 @@ def download_audio_yt_dlp():
         with yt_dlp.YoutubeDL({'quiet': True}) as ydl_info:
             info = ydl_info.extract_info(youtube_url, download=False)
         video_title = info.get('title', 'unknown_title')
+        duration_seconds = info.get('duration',None)
+
         title = video_title 
         safe_filename = safe_filename_song(video_title) 
         audio_path = os.path.join(UPLOAD_FOLDER, safe_filename) # without '.mp3' at the end because yt-dlp adds it 
@@ -507,7 +519,7 @@ def download_audio_yt_dlp():
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([youtube_url])
-        song_id = add_new_song(user_id=user_id, title=title,audio_path=audio_path+'.mp3',source=youtube_url,picture_path=image_path)
+        song_id = add_new_song(user_id=user_id, title=title,audio_path=audio_path+'.mp3',source=youtube_url,picture_path=image_path,duration=duration_seconds)
         return jsonify({'song_id': song_id, 'title':title}), 200
     
     except Exception as e:
