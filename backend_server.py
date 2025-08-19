@@ -65,8 +65,8 @@ fieldsModal = ["version_id", "title", "key_root", "key_mode", "picture_path", "d
 
 
 # Sync objects
-videoGenerationJobs = {}
-videoGenerationJobsLock = threading.Lock()  #Protects videoGenerationJobs map
+videoGenerationJobs = set()
+videoGenerationJobsLock = threading.Lock()  #Protects videoGenerationJobs set
 
 songUploadLock = threading.Lock()  # Ensures only one song upload is processed at a time
 uploadLockStartTime = None
@@ -370,7 +370,7 @@ def serve_index():
 
 @app.route("/<path:path>")
 def serve_static(path):
-    return send_from_directory(".", path)
+    return send_from_directory("static", path)
 
 @app.route('/api/get-songs-list-dropdown', methods=['GET'])
 def get_midi_files_dropdown():
@@ -602,9 +602,9 @@ def convert_audio():
 
 def generate_video(songVersionId):
     with videoGenerationJobsLock:
-        if videoGenerationJobs.get(songVersionId):
+        if songVersionId in videoGenerationJobs:
             raise RuntimeError("Video already generating")
-        videoGenerationJobs[songVersionId] = True
+        videoGenerationJobs.add(songVersionId)
 
     try:
         print(f"[generate_video] Starting generation for version_id={songVersionId}")
@@ -623,7 +623,7 @@ def generate_video(songVersionId):
 
     finally:
         with videoGenerationJobsLock:
-            videoGenerationJobs.pop(songVersionId, None)
+            videoGenerationJobs.pop(songVersionId)
         print(f"[generate_video] Finished generation for version_id={songVersionId}")
 
 
@@ -665,6 +665,26 @@ def get_video():
 
     return send_file(video_path)
 
+
+@app.route('/api/get-audio', methods=['GET'])
+def get_audio():
+    songVersionId = request.args.get('song_version_id')
+    if not songVersionId:
+        return jsonify({'error': 'Song version not found'}), 404
+    row = get_song_versions(fields=['audio_path','filename'], version_id=songVersionId)
+    audio_path = row.get('audio_path') if row else None
+    filename = row.get('filename') + '.mp3'
+    return send_file(audio_path, download_name = filename)
+
+@app.route('/api/get-midi', methods=['GET'])
+def get_midi():
+    songVersionId = request.args.get('song_version_id')
+    if not songVersionId:
+        return jsonify({'error': 'Song version not found'}), 404
+    row = get_song_versions(fields=['midi_path','filename'], version_id=songVersionId)
+    midi_path = row.get('midi_path') if row else None
+    filename = row.get('filename') + '.mid'
+    return send_file(midi_path, download_name = filename)
 
 @app.route('/api/get-musicxml', methods=['GET'])
 def get_musicxml():

@@ -131,58 +131,51 @@
         .song-info a:hover {
             text-decoration: underline;
         }
-        
-        .song-buttons {
-            margin-top: auto;
-            display: flex;
-            justify-content: space-between;
-        }
-        
-        .song-buttons button {
-            flex: 1;
-            margin: 4px 2px;
-            padding: 6px 10px;
-            border: none;
-            background-color: #222;
-            color: white;
-            font-size: 0.85em;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        
-        .song-buttons button:hover {
-            background-color: #444;
-        }
-        
-        .song-buttons {
-            display: flex;
-            flex-wrap: wrap;
-        }
-        
-        .song-buttons button {  
-            flex: 1 1 45%; /* 2 buttons in a row na*/
-        }
-
-
-    @media screen and (max-width: 768px) {
-    .w3-bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-start;
-    height: auto !important;
     
-}
+        .song-buttons {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .song-buttons-row-2,
+        .song-buttons-row-4 {
+            display: grid;
+            gap: 6px;
+        }
+
+        .song-buttons-row-2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .song-buttons-row-4 {
+            grid-template-columns: repeat(4, 1fr);
+        }
+      
+        .song-buttons-row-2 button,
+        .song-buttons-row-4 button {
+            border: 1px solid #ccc;   
+            padding: 6px;
+        }
 
 
-    /* hide "Piano Learning Tool"*/
-    .w3-title {
-        display: none !important;
-    }
-    }
-      .w3-content {
-    margin-top: 92px !important; /* lub więcej, jeśli navbar ma 2 rzędy */
-  }
+        @media screen and (max-width: 768px) {
+            .w3-bar {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: flex-start;
+                height: auto !important;
+            }
+            /* hide "Piano Learning Tool"*/
+            .w3-title {
+                display: none !important;
+            }
+            }
+            .w3-content {
+                margin-top: 92px !important; /* lub więcej, jeśli navbar ma 2 rzędy */
+            }
     </style>
 
     
@@ -236,8 +229,7 @@
                 <input type="text" id="youtube-url" class="w3-input w3-border w3-margin-bottom" placeholder="https://www.youtube.com/watch?v=...">
                 <button type="button" class="w3-button w3-black" onclick="add_song_youtube()">Add song fom YouTube</button>
                 <!--upload status message box-->
-                <p id="upload-status" class="w3-large w3-text-grey" style="display: none;">
-                    .
+                <p id="upload-status" class="w3-large w3-text-gray" style="display: none;">
                 </p>
 
                 <!--      <div id="midi-download" style="display:none;">
@@ -250,13 +242,14 @@
         <div id="video" class="section">
             <div class="w3-container w3-center">
                 <h2 class="w3-xxlarge w3-text-black w3-margin-top">Training Video</h2>
+                <h3 id ="video-title" class="w3-text-black w3-margin-top"></h2>
                 <div id="video-container" style="margin-top: 30px; display: none;">
                     <video id="synthviz-video" controls style="width: 90%; max-width: 1080px; border: 2px solid #000; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
                     <source id="video-source" src="" type="video/mp4">
                     Your browser does not support the video tag.
                     </video>
                 </div>
-                <p id="video-status" class="w3-large w3-text-grey" style="display: none; margin-bottom: 20px;">
+                <p id="video-status" class="w3-large w3-text-gray" style="display: none; margin-bottom: 20px;">
                     Select a song to generate a video.
                 </p>
 
@@ -265,12 +258,12 @@
 
         <!-- Detect Section -->
         <div id="detect" class="section">
-            <div class="w3-container">
-                <h2>Single Note Detector</h2>
-                <p>Use your microphone to detect notes in real time using FFT.</p>
+            <div class="w3-container w3-center w3-padding-32">
+                <h2 class="w3-xxlarge w3-text-black">Single Note Detector</h2>
+                <p class="w3-large w3-text-grey">Use your microphone to detect notes in real time.</p>
 
-                <button id="listen-button" onclick="toggle_listening()"> Start Listening</button>
-                <div id="note-display" style="font-size: 24px; margin-top: 20px;">Nuta: --</div>
+                <button id="listen-button"class="w3-button w3-black w3-round-large w3-margin-top" onclick="toggle_listening()"> Start Listening</button>
+                <div id="note-display" class="w3-xlarge w3-margin-top w3-text-black" style="font-size: 24px; margin-top: 20px;">Last Played Note:</div>
             </div>
         </div>
 
@@ -328,7 +321,7 @@
                           <option value="B">B</option>
                         </select>
                     </p>
-                    <p><label>Key Mode</label><input class="w3-input w3-border" id="manage-key-mode" type="text"></p>
+                    <!--<p><label>Key Mode</label><input class="w3-input w3-border" id="manage-key-mode" type="text"></p>-->
                     <p><label>Picture URL</label><input class="w3-input w3-border" id="manage-picture" type="text"></p>
                     <p><label>Description</label><textarea class="w3-input w3-border" id="manage-description"></textarea></p>
                     <p><label>Is Public</label>
@@ -352,8 +345,7 @@
     <script>
         let currentSong = null; // song_id
         let currentSection = null;
-        let wasMusicXmlClicked = false;         
-        let wasSheetMusicClicked = false; 
+
 
 
 
@@ -487,29 +479,38 @@
                     const sourceHTML = song.source ? `<p><a href="${song.source}" target="_blank">Source</a></p>` : '';
                     let selectBtnHTML = ''
                     if (String(song.version_id) === String(currentSong)) {
-                        selectBtnHTML = `<button class="w3-grey" onclick="select_song('${song.version_id}')">Select</button>`;
+                        selectBtnHTML = `<button class="w3-button w3-asphalt" onclick="select_song('${song.version_id}')">Select</button>`;
                     } else {
-                        selectBtnHTML = `<button onclick="select_song('${song.version_id}')">Select</button>`;
+                        selectBtnHTML = `<button class="w3-button w3-transprarent" onclick="select_song('${song.version_id}')">Select</button>`;
                     }
 
                     songContainer.innerHTML = `
-                            <div class="song-card">
-                                <img src="${imgUrl}" alt="${song.title}">
-                                <div class="song-info">
-                                <h3>${song.title}</h3>
-                                ${descriptionHTML}
-                                <p><strong>Duration:</strong> ${formatDuration(song.duration)}</p>
-                                    ${keyHTML}
-                                ${sourceHTML}
-                                    <div class="song-buttons">
-                                        ${selectBtnHTML}
-                                        <button onclick="manage_song('${song.version_id}')">Manage</button>
-                                        <button onclick="download_song_xml('${song.version_id}', event)">MusicXML</button>
-                                        <button onclick="download_song_pdf('${song.version_id}')">Sheet Music</button>
-                                </div>
-                                </div>
+                    <div class="song-card">
+                        <img src="${imgUrl}" alt="${song.title}">
+                        <div class="song-info">
+                        <h3>${song.title}</h3>
+                        ${descriptionHTML}
+                        <p><strong>Duration:</strong> ${formatDuration(song.duration)}</p>
+                        ${keyHTML}
+                        ${sourceHTML}
+                        
+                        <div class="song-buttons">
+                            <div class="song-buttons-row-2">
+                                ${selectBtnHTML}
+                                <button class="w3-button w3-transparent" onclick="manage_song('${song.version_id}')">Manage</button>
                             </div>
-                            `;
+
+                            <div class="song-buttons-row-4">
+                                <button class="w3-button w3-transparent" onclick="download_song_file('${song.version_id}', event, 'api/get-audio')"><i class="fa fa-music"></i> </button>
+                                <button class="w3-button w3-transparent" onclick="download_song_file('${song.version_id}', event, 'api/get-midi')"><i class="fa fa-file-audio-o"></i></button>
+                                <button class="w3-button w3-transparent" onclick="download_song_file('${song.version_id}', event, 'api/get-pdf')"><i class="fa fa-file-code-o"></i></button>
+                                <button class="w3-button w3-transparent" onclick="download_song_file('${song.version_id}', event, 'api/get-musicxml')"><i class="fa fa-file-pdf-o"></i> </button>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                    `;
+
                     container.appendChild(songContainer);
                 });
 
@@ -557,7 +558,7 @@
                     document.getElementById('manage-version-id').value = song.version_id;
                     document.getElementById('manage-title').value = song.title || '';
                     document.getElementById('manage-key-root').value = song.key_root || '';
-                    document.getElementById('manage-key-mode').value = song.key_mode || '';
+                    //document.getElementById('manage-key-mode').value = song.key_mode || '';
                     document.getElementById('manage-picture').value = song.picture_path || '';
                     document.getElementById('manage-description').value = song.description || '';
                     document.getElementById('manage-is-public').value = song.is_public ? '1' : '0';
@@ -575,7 +576,7 @@
                 version_id: document.getElementById('manage-version-id').value,
                 title_version: document.getElementById('manage-title').value,
                 key_root: document.getElementById('manage-key-root').value,
-                key_mode: document.getElementById('manage-key-mode').value,
+                //key_mode: document.getElementById('manage-key-mode').value,
                 picture_path: document.getElementById('manage-picture').value,
                 description: document.getElementById('manage-description').value,
                 is_public: parseInt(document.getElementById('manage-is-public').value),
@@ -638,22 +639,19 @@
         }
 
 
-
         function close_manage_modal() {
             document.getElementById('manage-modal').style.display = 'none';
         }
 
 
-
-        function download_song_xml(versionId,event) {
-                const button = event.target;
-
+        function download_song_file(versionId,event,endpoint) {
+            const button = event.target;
             if (button.dataset.cooldown === 'true') {
-                show_user_message("The button was clicked within the last 10 seconds. Your MusicXML file is currently generating and should download shortly", true)
+                show_user_message("The button was clicked within the last 7 seconds. Your file should be downloading shortly.", true)
                 return;
             }
             button.dataset.cooldown = 'true';
-            const xmlUrl = `http://localhost:8000/api/get-musicxml?song_version_id=${versionId}`;
+            const xmlUrl = `http://localhost:8000/${endpoint}?song_version_id=${versionId}`;
             const link = document.createElement('a');
             link.href = xmlUrl;
             link.click();
@@ -662,29 +660,6 @@
                 button.dataset.cooldown = 'false';
             }, 7000);
         }
-
-
-        
-
-        function download_song_pdf(versionId) {
-            if (wasSheetMusicClicked){
-                show_user_message("The button was clicked within the last 10 seconds. Your music sheet file is currently generating and should download shortly", true)
-                return;
-            }
-            const pdfUrl = `http://localhost:8000/api/get-pdf?song_version_id=${versionId}`;
-            const link = document.createElement('a');
-            link.href = pdfUrl;
-            link.download = '';
-            link.click();
-            setTimeout(() => {
-                wasSheetMusicClicked = false;
-            }, 10000); //block the button for 10 seconds
-        }
-
-
-
-
-
 
         async function unlock_new_song_lock() {
             try {
@@ -875,12 +850,14 @@
                 return;
             }
             console.log("[generate_training_video]")
-            const currVersionId= currentSong
+            const versionIdOnEnter= currentSong
+       
 
             const statusText = document.getElementById('video-status');
             const container = document.getElementById('video-container');
             const video = document.getElementById('synthviz-video');
             const source = document.getElementById('video-source');
+            const songTitleHeader = document.getElementById('video-title')
 
             video.pause();
             video.currentTime = 0;
@@ -891,7 +868,19 @@
 
 
             try {
-                let videoUrl = `http://localhost:8000/api/get-video?song_version_id=${currentSong}`;
+                //get the song title from database
+                const songTitleUrl = `http://localhost:8000/api/get-song-version-title/${versionIdOnEnter}`;
+                const resSongVersion = await fetch(songTitleUrl);
+                const data = await resSongVersion.json();
+                if (!resSongVersion.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to get song title');
+                }
+                const title = data.title?.title;
+                songTitleHeader.innerHTML= title
+
+
+                //get the video
+                let videoUrl = `http://localhost:8000/api/get-video?song_version_id=${versionIdOnEnter}`;
                 if (forceReload) {
                     videoUrl += `&t=${Date.now()}`; // force refresh by adding timestamp
                 }
@@ -906,17 +895,11 @@
                     console.log("Video is already generating (429). Waiting...");
                     return; // There is another job generating video for the song. The other job will load the video. So we can simply end this job here.
                 }
-                 source.src = videoUrl;
-                video.load();
-                
+                if (versionIdOnEnter==currentSong){
+                    source.src = videoUrl;
+                    video.load();
+                } 
                 if (res.status === 201) { // A new video was generated by the backend (likely a time-consuming operation) — inform the user
-                    const songUrl = `http://localhost:8000/api/get-song-version-title/${currVersionId}`;
-                    const resSongVersion = await fetch(songUrl);
-                    const data = await resSongVersion.json();
-                    if (!resSongVersion.ok || !data.success) {
-                        throw new Error(data.error || 'Failed to get song title');
-                    }
-                    const title = data.title?.title || 'Unknown Title';
                     show_user_message(`Video for the song "${title}" was generated`);
                 }
 
