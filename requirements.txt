@@ -11,12 +11,11 @@ Werkzeug==3.1.3
 # duration of .mp3
 mutagen
 
-
 #download youtube song
 yt-dlp
 
 # audio to midi spotify's model 
-basic-pitch[all]
+basic-pitch[tf]
 
 #audio to midi best performence model
 transkun 

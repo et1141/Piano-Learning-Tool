@@ -14,15 +14,16 @@
         body {
             font-family: "Lato", sans-serif
         }
-        
+
         .section {
             display: none;
             padding: 64px 16px;
         }
+
         .active-section {
             display: block;
         }
-    
+
         #upload-status {
             display: flex;
             justify-content: center;
@@ -30,7 +31,7 @@
             text-align: center;
             margin-top: 40px;
         }
-            
+
         .w3-bar .w3-title {
             font-family: 'Raleway', sans-serif;
             font-size: 20px;
@@ -39,7 +40,7 @@
             line-height: 46px;
             padding: 0 16px;
         }
-        
+
         .w3-bar .w3-button {
             height: 46px;
             line-height: 46px;
@@ -47,21 +48,21 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         .upload-success-buttons {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-top: 20px;
         }
-        
+
         #songs-gallery {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
             gap: 16px;
             padding: 20px;
         }
-        
+
         .song-card {
             background-color: white;
             border: 1px solid #ccc;
@@ -73,31 +74,31 @@
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             transition: box-shadow 0.3s;
         }
-        
+
         .song-card {
             display: flex;
             flex-direction: column;
             overflow: hidden;
             border-radius: 8px;
         }
-        
+
         .song-card:hover {
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
         }
-        
+
         .song-card img {
             width: 100%;
             height: 160px;
             object-fit: cover;
         }
-        
+
         .song-info {
             padding: 12px;
             flex-grow: 1;
             display: flex;
             flex-direction: column;
         }
-        
+
         .song-info h3 {
             font-size: 1.1em;
             margin-bottom: 6px;
@@ -105,7 +106,7 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-        
+
         .song-description {
             font-size: 0.9em;
             color: #555;
@@ -115,23 +116,23 @@
             -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
         }
-        
+
         .song-info p {
             font-size: 0.85em;
             margin: 4px 0;
             color: #333;
         }
-        
+
         .song-info a {
             color: #0066cc;
             text-decoration: none;
             font-size: 0.85em;
         }
-        
+
         .song-info a:hover {
             text-decoration: underline;
         }
-    
+
         .song-buttons {
             margin-top: 10px;
             display: flex;
@@ -152,10 +153,10 @@
         .song-buttons-row-4 {
             grid-template-columns: repeat(4, 1fr);
         }
-      
+
         .song-buttons-row-2 button,
         .song-buttons-row-4 button {
-            border: 1px solid #ccc;   
+            border: 1px solid #ccc;
             padding: 6px;
         }
 
@@ -168,16 +169,18 @@
                 justify-content: flex-start;
                 height: auto !important;
             }
+
             .w3-title {
                 display: none !important;
             }
-            }
-            .w3-content {
-                margin-top: 92px !important; 
-            }
+        }
+
+        .w3-content {
+            margin-top: 92px !important;
+        }
     </style>
 
-    
+
 </head>
 
 <body>
@@ -186,23 +189,27 @@
     <div class="w3-top">
         <div class="w3-bar w3-black w3-card" style="height:46px">
             <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('upload')">Upload</a>
-            <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('video')">Training Video</a>
-            <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('detect')">Pitch Detector</a>
+            <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('video')">Training
+                Video</a>
+            <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('detect')">Pitch
+                Detector</a>
             <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('game')">Game</a>
             <span class="w3-bar-item w3-title w3-right">Piano Learning Tool</span>
             <!-- Songs dropdown -->
             <div class="w3-dropdown-hover">
-                <button class="w3-padding-large w3-button" title="Songs" onmouseover="load_song_list()" onclick="show_section('songs')">
+                <button class="w3-padding-large w3-button" title="Songs" onmouseover="load_song_list()"
+                    onclick="show_section('songs')">
                     Songs <i class="fa fa-caret-down  w3-padding-small"></i>
                 </button>
-                <div class="w3-dropdown-content w3-bar-block w3-card-4" id="songs-dropdown" style="margin-left:5px;"></div>
+                <div class="w3-dropdown-content w3-bar-block w3-card-4" id="songs-dropdown" style="margin-left:5px;">
+                </div>
             </div>
         </div>
     </div>
-    
+
     <!-- Sections -->
     <div class="w3-content" style="margin-top:46px">
-        
+
         <!-- User Message Panel-->
         <div id="user-message" class="w3-panel" style="margin-top: 54px; text-align: center;  display: none;"></div>
 
@@ -213,26 +220,26 @@
                 <!-- select model -->
                 <label for="model-select">Select Model:</label>
                 <select id="model-select">
-                  <option value="transkun">Transkun</option>
-                  <option value="basic_pitch">Basic Pitch</option>
+                    <option value="transkun">Transkun</option>
+                    <option value="basic_pitch">Basic Pitch</option>
                 </select>
                 <!-- upload from a file -->
                 <h2>Upload a File</h2>
                 <form id="upload-form">
-                    <input type="file" id="audio-file" accept="audio/*" required class="w3-input w3-border w3-margin-bottom">
-                    <button type="button" id="button-upload-file" class="w3-button w3-black" onclick="add_song()" style="margin-bottom: 20px;">Add song from file</button>
+                    <input type="file" id="audio-file" accept="audio/*" required
+                        class="w3-input w3-border w3-margin-bottom">
+                    <button type="button" id="button-upload-file" class="w3-button w3-black" onclick="add_song()"
+                        style="margin-bottom: 20px;">Add song from file</button>
                 </form>
                 <!-- upload from a youtube link  -->
                 <h2 for="youtube-url">Or Paste a YouTube URL:</h2>
-                <input type="text" id="youtube-url" class="w3-input w3-border w3-margin-bottom" placeholder="https://www.youtube.com/watch?v=...">
-                <button type="button" class="w3-button w3-black" onclick="add_song_youtube()">Add song fom YouTube</button>
+                <input type="text" id="youtube-url" class="w3-input w3-border w3-margin-bottom"
+                    placeholder="https://www.youtube.com/watch?v=...">
+                <button type="button" class="w3-button w3-black" onclick="add_song_youtube()">Add song from
+                    YouTube</button>
                 <!--upload status message box-->
                 <p id="upload-status" class="w3-large w3-text-gray" style="display: none;">
                 </p>
-
-                <!--      <div id="midi-download" style="display:none;">
-          <a id="midi-link" href="#" download="converted.mid" class="w3-button w3-black">Download MIDI File</a>
-        </div>-->
             </div>
         </div>
 
@@ -240,16 +247,18 @@
         <div id="video" class="section">
             <div class="w3-container w3-center">
                 <h2 class="w3-xxlarge w3-text-black w3-margin-top">Training Video</h2>
-                <h3 id ="video-title" class="w3-text-black w3-margin-top"></h2>
-                <div id="video-container" style="margin-top: 30px; display: none;">
-                    <video id="synthviz-video" controls style="width: 90%; max-width: 1080px; border: 2px solid #000; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
-                    <source id="video-source" src="" type="video/mp4">
-                    Your browser does not support the video tag.
-                    </video>
-                </div>
-                <p id="video-status" class="w3-large w3-text-gray" style="display: none; margin-bottom: 20px;">
-                    Select a song to generate a video.
-                </p>
+                <h3 id="video-title" class="w3-text-black w3-margin-top">
+                    </h2>
+                    <div id="video-container" style="margin-top: 30px; display: none;">
+                        <video id="synthviz-video" controls
+                            style="width: 90%; max-width: 1080px; border: 2px solid #000; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
+                            <source id="video-source" src="" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                    <p id="video-status" class="w3-large w3-text-gray" style="display: none; margin-bottom: 20px;">
+                        Select a song to generate a video.
+                    </p>
 
             </div>
         </div>
@@ -260,8 +269,10 @@
                 <h2 class="w3-xxlarge w3-text-black">Single Note Detector</h2>
                 <p class="w3-large w3-text-grey">Use your microphone to detect notes in real time.</p>
 
-                <button id="listen-button"class="w3-button w3-black w3-round-large w3-margin-top" onclick="toggle_listening()"> Start Listening</button>
-                <div id="note-display" class="w3-xlarge w3-margin-top w3-text-black" style="font-size: 24px; margin-top: 20px;">Last Played Note:</div>
+                <button id="listen-button" class="w3-button w3-black w3-round-large w3-margin-top"
+                    onclick="toggle_listening()"> Start Listening</button>
+                <div id="note-display" class="w3-xlarge w3-margin-top w3-text-black"
+                    style="font-size: 24px; margin-top: 20px;">Last Played Note:</div>
             </div>
         </div>
 
@@ -269,7 +280,8 @@
 
         <div id="game" class="section">
             <div id="game-root" class="w3-container">
-                <iframe id="game-frame" src="http://localhost:8000/game" width="100%" height="800px" style="border:none;"></iframe>
+                <iframe id="game-frame" src="http://localhost:8000/game" width="100%" height="800px"
+                    style="border:none;"></iframe>
             </div>
         </div>
 
@@ -296,35 +308,38 @@
                     <p><label>Title</label><input class="w3-input w3-border" id="manage-title" type="text"></p>
                     <p><label>Key Root</label>
                         <select class="w3-select w3-border" id="manage-key-root">
-                          <option value="">-- Select Note --</option>
-                          <option value="C">C</option>
-                          <option value="C#">C#</option>
-                          <option value="D">D</option>
-                          <option value="D#">D#</option>
-                          <option value="E">E</option>
-                          <option value="F">F</option>
-                          <option value="F#">F#</option>
-                          <option value="G">G</option>
-                          <option value="G#">G#</option>
-                          <option value="A">A</option>
-                          <option value="A#">A#</option>
-                          <option value="B">B</option>
+                            <option value="">-- Select Note --</option>
+                            <option value="C">C</option>
+                            <option value="C#">C#</option>
+                            <option value="D">D</option>
+                            <option value="D#">D#</option>
+                            <option value="E">E</option>
+                            <option value="F">F</option>
+                            <option value="F#">F#</option>
+                            <option value="G">G</option>
+                            <option value="G#">G#</option>
+                            <option value="A">A</option>
+                            <option value="A#">A#</option>
+                            <option value="B">B</option>
                         </select>
                     </p>
                     <!--<p><label>Key Mode</label><input class="w3-input w3-border" id="manage-key-mode" type="text"></p>-->
                     <p><label>Picture URL</label><input class="w3-input w3-border" id="manage-picture" type="text"></p>
-                    <p><label>Description</label><textarea class="w3-input w3-border" id="manage-description"></textarea></p>
+                    <p><label>Description</label><textarea class="w3-input w3-border"
+                            id="manage-description"></textarea></p>
                     <p><label>Is Public</label>
                         <select class="w3-select w3-border" id="manage-is-public">
-                  <option value="1">Yes</option>
-                  <option value="0">No</option>
-                </select>
+                            <option value="1">Yes</option>
+                            <option value="0">No</option>
+                        </select>
                     </p>
                     <div class="w3-center w3-padding">
-                        <button type="button" class="w3-button w3-black" style="width: 32%;" onclick="save_song(false)">Save Changes</button>
-                        <button type="button" class="w3-button w3-black" style="width: 32%;" onclick="save_song(true)">Save as New Version</button>
-                        <button type="button" class="w3-button w3-black" style="width: 32%;" onclick="delete_song()">Delete</button>
-                    
+                        <button type="button" class="w3-button w3-black" style="width: 32%;"
+                            onclick="save_song(false)">Save Changes</button>
+                        <button type="button" class="w3-button w3-black" style="width: 32%;"
+                            onclick="save_song(true)">Save as New Version</button>
+                        <button type="button" class="w3-button w3-black" style="width: 32%;"
+                            onclick="delete_song()">Delete</button>
                     </div>
                 </form>
             </div>
@@ -337,29 +352,29 @@
         let currentSection = null;
 
 
-  const SERVER_URL = 'https://0d5009c9c6f1.ngrok-free.app'; 
-  //const SERVER_URL = 'http://localhost:8000'; 
-  
-  const api = (p) => `${SERVER_URL}${p}`;
+        const SERVER_URL = 'http://localhost:8000';
 
-  const NGROK_HEADERS = { 'ngrok-skip-browser-warning': 'true' };
+        const api = (p) => `${SERVER_URL}${p}`;
 
-
-  function apiFetch(path, options = {}) {
-    const headers = { ...(options.headers || {}), ...NGROK_HEADERS };
-    return fetch(api(path), { ...options, headers });
-  }
+        const NGROK_HEADERS = { 'ngrok-skip-browser-warning': 'true' };
 
 
 
-    document.addEventListener("DOMContentLoaded", () => {
-        const gameFrame = document.getElementById("game-frame");
-        if (gameFrame) {
-            gameFrame.src = api('/game');
+        function api_fetch(path, options = {}) {
+            const headers = { ...(options.headers || {}), ...NGROK_HEADERS };
+            return fetch(api(path), { ...options, headers });
         }
-    });
 
-        function get_status_spinner_message_html(message){
+
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const gameFrame = document.getElementById("game-frame");
+            if (gameFrame) {
+                gameFrame.src = api('/game');
+            }
+        });
+
+        function get_status_spinner_message_html(message) {
             return `
                      <span id="status-text">
                         ${message}
@@ -368,10 +383,10 @@
                    `;
         }
 
-        async function show_section(id,restart = false) {
+        async function show_section(id, restart = false) {
             const sections = document.getElementsByClassName('section');
 
-            if (id === currentSection && !restart){
+            if (id === currentSection && !restart) {
                 return;
             }
 
@@ -380,7 +395,7 @@
                 section.classList.remove('active-section');
             }
             document.getElementById(id).classList.add('active-section');
-            
+
 
             //pause video when leaving video section
             if (currentSection === 'video' && id !== 'video') {
@@ -388,14 +403,14 @@
                 if (video && !video.paused) {
                     video.pause();
                 }
-            }   
-            
+            }
+
             //section sepecific functionalities 
             if (id === 'songs') {
                 load_songs_gallery();
             }
             else if (id === 'video') {
-               
+
                 generate_training_video()
             }
             else if (id === 'game') {
@@ -414,7 +429,7 @@
             const dropdown = document.getElementById('songs-dropdown');
 
             try {
-                const res = await apiFetch('/api/get-songs-list-dropdown');
+                const res = await api_fetch('/api/get-songs-list-dropdown');
 
                 const songs = await res.json();
 
@@ -434,7 +449,7 @@
                     item.href = '#';
                     item.className = 'w3-bar-item w3-button';
 
-                    // cut long name
+                    // cut long title
                     // const maxLength = 30;
                     // const displayName = song.length > maxLength ? song.slice(0, maxLength - 6) + '....mid' : song;
                     item.innerText = title;
@@ -467,7 +482,7 @@
 
         function formatDuration(seconds) {
             if (!seconds || isNaN(seconds)) return "--";
-            const total = Math.round(seconds);  
+            const total = Math.round(seconds);
             const mins = Math.floor(total / 60);
             const secs = total % 60;
             return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -477,7 +492,7 @@
             container.innerHTML = '<p>Loading songs...</p>';
 
             try {
-                const res = await apiFetch('/api/get-songs-list-gallery');
+                const res = await api_fetch('/api/get-songs-list-gallery');
                 const songs = await res.json();
 
                 container.innerHTML = ''; // Clear loading message
@@ -499,7 +514,7 @@
                     if (String(song.version_id) === String(currentSong)) {
                         selectBtnHTML = `<button class="w3-button w3-asphalt" onclick="select_song('${song.version_id}')">Select</button>`;
                     } else {
-                        selectBtnHTML = `<button class="w3-button w3-transprarent" onclick="select_song('${song.version_id}')">Select</button>`;
+                        selectBtnHTML = `<button class="w3-button w3-transparent" onclick="select_song('${song.version_id}')">Select</button>`;
                     }
 
                     songContainer.innerHTML = `
@@ -511,20 +526,18 @@
                         <p><strong>Duration:</strong> ${formatDuration(song.duration)}</p>
                         ${keyHTML}
                         ${sourceHTML}
-                        
                         <div class="song-buttons">
                             <div class="song-buttons-row-2">
                                 ${selectBtnHTML}
                                 <button class="w3-button w3-transparent" onclick="manage_song('${song.version_id}')">Manage</button>
                             </div>
-
                             <div class="song-buttons-row-4">
                                 <button class="w3-button w3-transparent" onclick="download_song_file('${song.version_id}', event, 'api/get-audio')"><i class="fa fa-music"></i> </button>
                                 <button class="w3-button w3-transparent" onclick="download_song_file('${song.version_id}', event, 'api/get-midi')"><i class="fa fa-file-audio-o"></i></button>
-                                <button class="w3-button w3-transparent" onclick="download_song_file('${song.version_id}', event, 'api/get-pdf')"><i class="fa fa-file-code-o"></i></button>
-                                <button class="w3-button w3-transparent" onclick="download_song_file('${song.version_id}', event, 'api/get-musicxml')"><i class="fa fa-file-pdf-o"></i> </button>
+                                <button class="w3-button w3-transparent" onclick="download_song_file('${song.version_id}', event, 'api/get-pdf')"><i class="fa fa-file-pdf-o"></i></button>
+                                <button class="w3-button w3-transparent" onclick="download_song_file('${song.version_id}', event, 'api/get-musicxml')"><i class="fa fa-file-code-o"></i> </button>
                             </div>
-                        </div>
+                         </div>
                         </div>
                     </div>
                     `;
@@ -554,23 +567,23 @@
             //dissapear after 5 sec
             setTimeout(() => {
                 msgBox.style.display = 'none';
-            }, 5000); 
+            }, 5000);
         }
 
         function select_song(versionId) {
             console.log("HELLO FROM SELECT_SONG")
             currentSong = versionId;
-            load_song_list(); // to refresh dropdown with new highlight
-            load_songs_gallery(); //TODO: Jesli nie chce ponownego ladowania strony to usun, ale wtedy nie bedzie tez podswietlania przycisku
+            load_song_list(); // to refresh dropdown with the new highlight
+            load_songs_gallery();
             if (currentSection === 'video') { //reload video by loading video section again
-                show_section('video',true) 
+                show_section('video', true)
             }
         }
 
 
         function manage_song(versionId) { //displays "manage_song modal"s
-        
-            apiFetch(`/api/get-song-version/${versionId}`)
+
+            api_fetch(`/api/get-song-version/${versionId}`)
                 .then(res => res.json())
                 .then(song => {
                     //console.log(manage_song("called with song.version_id:", song.version_id)
@@ -599,11 +612,11 @@
                 picture_path: document.getElementById('manage-picture').value,
                 description: document.getElementById('manage-description').value,
                 is_public: parseInt(document.getElementById('manage-is-public').value),
-                save_as_new: asNewVersion 
+                save_as_new: asNewVersion
             };
 
             try {
-                const res = await apiFetch(`/api/update-song`, {
+                const res = await api_fetch(`/api/update-song`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -636,24 +649,24 @@
             console.log(versionId)
 
 
-            apiFetch(`/api/delete-song-version/${versionId}`, {
+            api_fetch(`/api/delete-song-version/${versionId}`, {
                 method: 'DELETE'
             })
-            .then(res => {
-                if (!res.ok) {
-                    return res.json().then(err => { throw new Error(err.error || 'Unknown error') });
-                }
-                return res.json();
-            })
-            .then(() => {
-                close_manage_modal();
-                load_songs_gallery();
-                show_user_message("Song version deleted successfully.");
-            })
-            .catch(err => {
-                console.error("Error deleting song version:", err);
-                show_user_message("Could not delete song version", true);
-            });
+                .then(res => {
+                    if (!res.ok) {
+                        return res.json().then(err => { throw new Error(err.error || 'Unknown error') });
+                    }
+                    return res.json();
+                })
+                .then(() => {
+                    close_manage_modal();
+                    load_songs_gallery();
+                    show_user_message("Song version deleted successfully.");
+                })
+                .catch(err => {
+                    console.error("Error deleting song version:", err);
+                    show_user_message("Could not delete song version", true);
+                });
         }
 
 
@@ -662,7 +675,7 @@
         }
 
 
-        function download_song_file(versionId,event,endpoint) {
+        function download_song_file(versionId, event, endpoint) {
             const button = event.target;
             if (button.dataset.cooldown === 'true') {
                 show_user_message("The button was clicked within the last 7 seconds. Your file should be downloading shortly.", true)
@@ -681,7 +694,7 @@
 
         async function unlock_new_song_lock() {
             try {
-                const res = await apiFetch(`/api/unlock-upload`, {
+                const res = await api_fetch(`/api/unlock-upload`, {
                     method: 'POST'
                 });
                 const data = await res.json();
@@ -691,7 +704,6 @@
             }
         }
 
-
         async function convert_file(song_id) {
             const modelSelect = document.getElementById('model-select');
             const dataApi = {
@@ -700,7 +712,7 @@
             };
 
             try {
-                const res = await apiFetch(`/api/convert-audio`, {
+                const res = await api_fetch(`/api/convert-audio`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -708,7 +720,7 @@
                     body: JSON.stringify(dataApi)
                 });
                 if (!res.ok) {
-                    const text = await res.text();  
+                    const text = await res.text();
                     throw new Error(`HTTP ${res.status} – ${text}`);
                 }
 
@@ -717,13 +729,12 @@
                     load_song_list();
                     load_songs_gallery();
                     show_user_message(`The song "${data.title}" was converted successfully.`);
-                    //TODO: czy moze po dodaniu ustawic currentSong=data.song_version_id ? 
                 } else {
                     show_user_message('Error converting file. No MIDI generated.', true);
                 }
             } catch (error) {
                 console.error('Conversion failed:', error);
-                await unlock_new_song_lock();  
+                await unlock_new_song_lock();
                 show_user_message(`Conversion failed: ${error.message}`, true);
             }
         }
@@ -744,19 +755,19 @@
             formData.append('audio_file', file);
 
             try {
-                const res = await apiFetch(`/api/upload-audio`, {
+                const res = await api_fetch(`/api/upload-audio`, {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 if (!res.ok) {
                     if (res.status === 429) {
                         console.log("Another upload is already in progress (429). Upload canceled.");
                         show_user_message("Another song is currently being uploaded. Please wait and try again when it's done.", true);
-                        cleanStatusText=false
+                        cleanStatusText = false
                         return; // Another upload job is in progress — stop this one
                     }
-                    const text = await res.text(); 
+                    const text = await res.text();
                     throw new Error(`HTTP ${res.status} – ${text}`);
                 }
                 statusText.style.display = 'flex';
@@ -773,11 +784,11 @@
             } catch (err) {
                 console.error('Upload failed:', err);
                 show_user_message(`Upload failed: ${err.message}`, true);
-                await unlock_new_song_lock();  
+                await unlock_new_song_lock();
             } finally {
-                if (cleanStatusText){
-                 statusText.innerHTML = ``;
-                 statusText.style.display='none';
+                if (cleanStatusText) {
+                    statusText.innerHTML = ``;
+                    statusText.style.display = 'none';
                 }
             }
         }
@@ -792,14 +803,10 @@
                 alert('Please enter a YouTube link.');
                 return;
             }
-
-
             try {
-                
                 statusText.style.display = 'flex';
                 statusText.innerHTML = get_status_spinner_message_html(`Downloading song from: ${url} ... please wait`);
-
-                const res = await apiFetch(`/api/download-upload-audio`, {
+                const res = await api_fetch(`/api/download-upload-audio`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -816,7 +823,7 @@
                         show_user_message("Another song is currently being uploaded. Please wait and try again.", true);
                         return; // Another upload job is in progress — stop this one
                     }
-                    const text = await res.text();  
+                    const text = await res.text();
                     throw new Error(`HTTP ${res.status} – ${text}`);
                 }
 
@@ -831,13 +838,13 @@
             } catch (err) {
                 console.error('Upload failed:', err);
                 show_user_message(`Upload failed: ${err.message}`, true);
-                await unlock_new_song_lock();  
+                await unlock_new_song_lock();
 
             }
             finally {
-                if (cleanStatusText){
-                 statusText.innerHTML = ``;
-                 statusText.style.display='none';
+                if (cleanStatusText) {
+                    statusText.innerHTML = ``;
+                    statusText.style.display = 'none';
                 }
             }
         }
@@ -846,8 +853,8 @@
         async function wait_for_video(url, retries = 15, delay = 4000) {
             for (let i = 0; i < retries; i++) {
                 try {
-                    const res = await apiFetch(url, { method: 'HEAD' });
-                    if (res.ok || res.status === 429){ 
+                    const res = await api_fetch(url, { method: 'HEAD' });
+                    if (res.ok || res.status === 429) {
                         return res;
                     }
                     if (res.status === 500) {
@@ -867,8 +874,8 @@
                 return;
             }
             console.log("[generate_training_video]")
-            const versionIdOnEnter= currentSong
-       
+            const versionIdOnEnter = currentSong
+
 
             const statusText = document.getElementById('video-status');
             const container = document.getElementById('video-container');
@@ -886,13 +893,13 @@
 
             try {
                 //get the song title from database
-                const resSongVersion = await apiFetch(`/api/get-song-version-title/${versionIdOnEnter}`);
+                const resSongVersion = await api_fetch(`/api/get-song-version-title/${versionIdOnEnter}`);
                 const data = await resSongVersion.json();
                 if (!resSongVersion.ok || !data.success) {
                     throw new Error(data.error || 'Failed to get song title');
                 }
                 const title = data.title?.title;
-                songTitleHeader.innerHTML= title
+                songTitleHeader.innerHTML = title
 
 
                 //get the video
@@ -907,14 +914,14 @@
                     return;
                 }
 
-                 if (res.status === 429) {
+                if (res.status === 429) {
                     console.log("Video is already generating (429). Waiting...");
                     return; // There is another job generating video for the song. The other job will load the video. So we can simply end this job here.
                 }
-                if (versionIdOnEnter==currentSong){
+                if (versionIdOnEnter == currentSong) {
                     source.src = api(videoUrl);
                     video.load();
-                } 
+                }
                 if (res.status === 201) { // A new video was generated by the backend (likely a time-consuming operation) — inform the user
                     show_user_message(`Video for the song "${title}" was generated`);
                 }
@@ -933,102 +940,101 @@
 
 
 
-</script>
+    </script>
 
-<script type="module">
-  import { PitchDetector } from "https://esm.sh/pitchy@4";
+    <script type="module">
+        import { PitchDetector } from "https://esm.sh/pitchy@4";
 
-  // ****************************************************** Note detect part ******************************************************
-  let audioContext, analyserNode, microphone, timeData, detector, animationId;
-  let isListening = false;
+        // ****************************************************** Note detect part ******************************************************
+        let audioContext, analyserNode, microphone, timeData, detector, animationId;
+        let isListening = false;
 
-  //hysterasis for stable UI
-  let lastMidi = null;
-  let stableMidi = null;
-  let sameCount = 0;
+        //hysterasis for stable UI
+        let lastMidi = null;
+        let stableMidi = null;
+        let sameCount = 0;
 
-  window.toggle_listening = async function toggle_listening() {
-    const button = document.getElementById('listen-button');
-    if (isListening) {
-      stop_listening();
-      button.textContent = 'Start Listening';
-    } else {
-      await start_listening();
-      button.textContent = 'Stop Listening';
-    }
-  }
+        window.toggle_listening = async function toggle_listening() {
+            const button = document.getElementById('listen-button');
+            if (isListening) {
+                stop_listening();
+                button.textContent = 'Start Listening';
+            } else {
+                await start_listening();
+                button.textContent = 'Stop Listening';
+            }
+        }
 
-  //https://developer.mozislla.org/en-US/docs/Web/API/BaseAudioContext/createAnalyser
-  async function start_listening() { 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      microphone = stream;
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      await audioContext.resume(); // Chrome wymaga interakcji
+        //https://developer.mozislla.org/en-US/docs/Web/API/BaseAudioContext/createAnalyser
+        async function start_listening() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                microphone = stream;
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                await audioContext.resume(); // Chrome wymaga interakcji
 
-      const src = audioContext.createMediaStreamSource(stream);
-      analyserNode = audioContext.createAnalyser(); 
-      analyserNode.fftSize = 2048;             
-      src.connect(analyserNode);
+                const src = audioContext.createMediaStreamSource(stream);
+                analyserNode = audioContext.createAnalyser();
+                analyserNode.fftSize = 2048;
+                src.connect(analyserNode);
 
-      timeData = new Float32Array(analyserNode.fftSize);
-      detector = PitchDetector.forFloat32Array(analyserNode.fftSize);
-      
-      lastMidi = stableMidi = null;
-      sameCount=0;
+                timeData = new Float32Array(analyserNode.fftSize);
+                detector = PitchDetector.forFloat32Array(analyserNode.fftSize);
 
-      isListening = true;
-      listen_loop();
-    } catch (err) {
-      console.error('Microphone access error:', err);
-    }
-  }
+                lastMidi = stableMidi = null;
+                sameCount = 0;
 
-  function stop_listening() {
-    if (animationId) cancelAnimationFrame(animationId);
-    if (audioContext) audioContext.close();
-    if (microphone) microphone.getTracks().forEach(track => track.stop()); 
-    document.getElementById('note-display').textContent = '';
-    isListening = false;
-  }
+                isListening = true;
+                listen_loop();
+            } catch (err) {
+                console.error('Microphone access error:', err);
+            }
+        }
 
-  function listen_loop() { 
-    analyserNode.getFloatTimeDomainData(timeData);
+        function stop_listening() {
+            if (animationId) cancelAnimationFrame(animationId);
+            if (audioContext) audioContext.close();
+            if (microphone) microphone.getTracks().forEach(track => track.stop());
+            document.getElementById('note-display').textContent = '';
+            isListening = false;
+        }
 
-    const [freq, clarity] = detector.findPitch(timeData, audioContext.sampleRate);
-    let midi = null 
-    if (Number.isFinite(freq) && clarity >= 0.8) {
-        midi = hz_to_midi_number(freq)
-    }
-    
-    //hysterasis:
-    if (midi != null && midi === lastMidi) {
-        sameCount++;
-    }else {
-        sameCount = 0;
-    }
-    lastMidi = midi;
+        function listen_loop() {
+            analyserNode.getFloatTimeDomainData(timeData);
 
-    //console.log(freq);
-    if (sameCount>=4 && midi !==stableMidi){
-        stableMidi=midi;
-        document.getElementById('note-display').textContent = 'Last Played Note: ' + (midi != null ? midi_number_to_note_name(midi) : '');
-    }
+            const [freq, clarity] = detector.findPitch(timeData, audioContext.sampleRate);
+            let midi = null
+            if (Number.isFinite(freq) && clarity >= 0.8) {
+                midi = hz_to_midi_number(freq)
+            }
 
-    if (isListening) animationId = requestAnimationFrame(listen_loop);
-  }
+            //hysterasis:
+            if (midi != null && midi === lastMidi) {
+                sameCount++;
+            } else {
+                sameCount = 0;
+            }
+            lastMidi = midi;
 
-  //https://inspiredacoustics.com/en/MIDI_note_numbers_and_center_frequencies
-  function hz_to_midi_number(f){ return f>0 ? Math.round(69 + 12*Math.log2(f/440)) : null; }
-  function midi_number_to_note_name(n){
-    if (n == null) return null;
-    const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-    const name = names[n % 12];
-    const octave = Math.floor(n / 12) - 1; //69 -> A4
-    return `${name}${octave}`;
-  }
-  
-</script>
+            if (sameCount >= 4 && midi !== stableMidi) {
+                stableMidi = midi;
+                document.getElementById('note-display').textContent = 'Last Played Note: ' + (midi != null ? midi_number_to_note_name(midi) : '');
+            }
+
+            if (isListening) animationId = requestAnimationFrame(listen_loop);
+        }
+
+        //https://inspiredacoustics.com/en/MIDI_note_numbers_and_center_frequencies
+        function hz_to_midi_number(f) { return f > 0 ? Math.round(69 + 12 * Math.log2(f / 440)) : null; }
+        function midi_number_to_note_name(n) {
+            if (n == null) return null;
+            const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const name = names[n % 12];
+            const octave = Math.floor(n / 12) - 1; //69 -> A4
+            return `${name}${octave}`;
+        }
+
+    </script>
 
 </body>
 

@@ -1,0 +1,100 @@
+flowchart TD
+ subgraph subGraph0["Frontend: Dodanie Utworu"]
+        B[["POST /api/upload-audio"]]
+        A["upload_file()"]
+        B2[["POST /api/download-upload-audio"]]
+        A2["upload_file_youtube()"]
+  end
+ subgraph subGraph1["Backend: Zapisanie Utworu"]
+        L0A["force_unlock_upload_if_stuck()"]
+        L0B["force_unlock_upload_if_stuck()"]
+        L1A{"Czy udało się zablokować songUploadLock?"}
+        L1B{"Czy udało się zablokować songUploadLock?"}
+        ERR1(["HTTP 429: Too many requests"])
+        L2A(["startTime = now <br> save_mp3()"])
+        L3A(["🗄 add_new_song()"])
+        L2B(["startTime = now <br> download_audio_yt_dlp()"])
+        L3B(["🗄 add_new_song()"])
+  end
+ subgraph subGraph2["Frontend: Konwersja"]
+        CONTINUE1["convert_file"]
+        F[["POST /api/convert-audio"]]
+  end
+ subgraph subGraph3["Backend: Konwersja"]
+        G1(["🗄 get_song()"])
+        G2(["konwersja audio → MIDI"])
+        G3(["analiza midi: tonacja, instrument.."])
+        G4(["🗄 add_new_song_version()"])
+  end
+    A -- "plik .mp3" --> B
+    A2 -- YouTube url --> B2
+    B --> L0A
+    L0A --> L1A
+    B2 --> L0B
+    L0B --> L1B
+    L1A -- nie --> ERR1
+    L1A -- tak --> L2A
+    L2A --> L3A
+    L1B -- nie --> ERR1
+    L1B -- tak --> L2B
+    L2B --> L3B
+    L3A -- ciag dalszy funkcji upload_file() --> CONTINUE1
+    L3B -- ciag dalszy funkcji upload_file_youtube() --> CONTINUE1
+    CONTINUE1 --> F
+    F --> G1
+    G1 --> G2
+    G2 --> G3
+    G3 --> G4
+    G4 -- finally: --> FINALLY_ULOCK["release_upload_lock()"]
+    FINALLY_ULOCK --> END(("Koniec"))
+    ERR1 -- przerwij --> END
+    L3A -- błąd --> ERRGEN(["obsluga bledu"])
+    L3B -- błąd --> ERRGEN
+    CONTINUE1 -- błąd --> ERRGEN
+    G1 -- błąd --> ERRGEN
+    G2 -- błąd --> ERRGEN
+    G3 -- błąd --> ERRGEN
+    G4 -- błąd --> ERRGEN
+    F -- błąd --> ERRGEN
+    ERRGEN -- błąd frontend --> UNLOCK_API[["POST /api/unlock-upload"]]
+    ERRGEN -- błąd backend --> RELEASE_LOCK["release_upload_lock()"]
+    UNLOCK_API --> RELEASE_LOCK
+    RELEASE_LOCK --> END
+
+    style B fill:#d0e0f0
+    style A fill:#fff2d9
+    style B2 fill:#d0e0f0
+    style A2 fill:#fff2d9
+    style L0A fill:#fff2d9
+    style L0B fill:#fff2d9
+    style ERR1 fill:#ffcccc,stroke:#cc0000,stroke-width:1.5px
+    style L2A fill:#eeeeff
+    style L3A fill:#eeeeff
+    style L2B fill:#eeeeff
+    style L3B fill:#eeeeff
+    style CONTINUE1 fill:#fff2d9
+    style F fill:#d0e0f0
+    style G1 fill:#eeeeff
+    style G2 fill:#eeeeff
+    style G3 fill:#eeeeff
+    style G4 fill:#eeeeff
+    style FINALLY_ULOCK fill:#ccffff,stroke:#009999,stroke-width:1.5px
+    style ERRGEN fill:#ffcccc,stroke:#cc0000,stroke-width:1.5px
+    style UNLOCK_API fill:#d0e0f0
+    style RELEASE_LOCK fill:#ccffff,stroke:#009999,stroke-width:1.5px
+    linkStyle 4 stroke:#000000,fill:none
+    linkStyle 6 stroke:#D50000,fill:none
+    linkStyle 7 stroke:#000000,fill:none
+    linkStyle 9 stroke:#D50000,fill:none
+    linkStyle 20 stroke:#000000
+    linkStyle 21 stroke:#D50000,fill:none
+    linkStyle 22 stroke:#D50000,fill:none
+    linkStyle 23 stroke:#D50000,fill:none
+    linkStyle 24 stroke:#D50000,fill:none
+    linkStyle 25 stroke:#D50000,fill:none
+    linkStyle 26 stroke:#D50000,fill:none
+    linkStyle 27 stroke:#D50000,fill:none
+    linkStyle 28 stroke:#D50000,fill:none
+    linkStyle 29 stroke:#D50000,fill:none
+
+

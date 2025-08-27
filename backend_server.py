@@ -30,7 +30,7 @@ import sqlite3
 
 
 app = Flask(__name__)
-CORS(app) # Let any domain to access API
+CORS(app) # Let any domain to access the API
 
 
 DB_PATH = 'songs.db'
@@ -70,16 +70,16 @@ videoGenerationJobsLock = threading.Lock()  #Protects videoGenerationJobs set
 
 songUploadLock = threading.Lock()  # Ensures only one song upload is processed at a time
 uploadLockStartTime = None
-uploadLockTimeout = 60 * 5  # 5 minutes
+uploadLockTimeout = 60 * 5  
 
 ######################################## Database functions  ########################################
 
 def get_db_connection(): 
     conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row  # by móc używać dict-like results
+    conn.row_factory = sqlite3.Row  
     return conn
 
-######################################## CREATE
+### CREATE
 
 def add_new_song(**kwargs):
     if not kwargs.get('audio_path'):
@@ -104,6 +104,29 @@ def add_new_song(**kwargs):
     conn.close()
     return song_id
 
+def add_new_song_version(**kwargs):
+    if 'song_id' not in kwargs:
+        raise ValueError("Missing required field: song_id")
+    for f in kwargs.keys():
+        if f not in allowedFieldsSongVersions and f != "uploaded_date":
+            raise ValueError(f"Unrecognized field: {f}")
+
+    fields = ', '.join(kwargs.keys())
+    placeholders = ', '.join(['?'] * len(kwargs))
+    values = list(kwargs.values())
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(f'''
+        INSERT INTO song_versions ({fields})
+        VALUES ({placeholders})
+    ''', values)
+    song_version_id = cur.lastrowid
+    conn.commit()
+    conn.close()
+    return song_version_id
+
+
 def add_new_song_version(song_id,model_name,key_root,key_mode,instrument,filename,midi_path):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -115,7 +138,7 @@ def add_new_song_version(song_id,model_name,key_root,key_mode,instrument,filenam
     return song_version_id
 
 
-######################################## READ
+### READ
 
 def get_song(song_id):
     conn = get_db_connection()
@@ -145,7 +168,7 @@ def get_song_versions(fields=None, version_id=None):
     cur = conn.cursor()
 
     if fields:
-        # if field is a single elem convert it to list
+        # if field is a single element convert it to list
         if isinstance(fields, str):
             fields = [fields]
         selected_fields = []
@@ -153,16 +176,16 @@ def get_song_versions(fields=None, version_id=None):
             if f not in allowedFields:
                 raise ValueError(f"Unrecognized field: {f}")
             if f == 'title':
-                selected_fields.append("COALESCE(title_version, title) AS title") # if title_version then title_version
+                selected_fields.append("COALESCE(title_version, title) AS title")
             elif f == 'picture_path':
-                selected_fields.append("COALESCE(picture_version_path, picture_path) AS picture_path") # if title_version then title_version
+                selected_fields.append("COALESCE(picture_version_path, picture_path) AS picture_path")
             else:
                 selected_fields.append(f)
 
         field_str = ', '.join(selected_fields)
         print(field_str)
     else:
-        field_str = '*'  # all columns
+        field_str = '*'  
 
     query = f'SELECT {field_str} FROM song_versions LEFT JOIN songs ON song_versions.song_id = songs.song_id'
 
@@ -207,7 +230,7 @@ def get_song_version_title_api(songVersionId):
 
 def get_table(table):
     if not table.isidentifier():
-        raise ValueError("Invalid table name")  # zabezpieczenie przed SQL injection
+        raise ValueError("Invalid table name")  # SQL injection protection
     conn = get_db_connection()
     cur = conn.cursor()
     query = f'SELECT * FROM {table}'
@@ -222,7 +245,7 @@ def get_table(table):
 
 
 
-######################################## UPDATE
+### UPDATE
 def map_song_versions_field_name(field): #this function is only used by update_song_version 
     if field=='picture_path':
         return 'picture_version_path'
@@ -232,14 +255,14 @@ def map_song_versions_field_name(field): #this function is only used by update_s
 
 def update_song(songId, **kwargs):
     if not kwargs:
-        return  # nic do aktualizacji
+        return  # nothing to update
     for f in kwargs:
         if f not in allowedFieldsSongs:
             raise ValueError(f"Unrecognized field for update: {f}")
         
     fields = ', '.join(f"{f} = ?" for f in kwargs)
     values = list(kwargs.values())
-    values.append(songId)  # dodaj ID na końcu do WHERE
+    values.append(songId)  
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -264,8 +287,7 @@ def update_song_version(songVersionId, **kwargs):
         
     fields = ', '.join(f"{map_song_versions_field_name(f)} = ?" for f in kwargs)
     values = list(kwargs.values())
-    values.append(songVersionId)  # dodaj ID na końcu do WHERE
-
+    values.append(songVersionId)  
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(f'''
@@ -280,7 +302,7 @@ def update_song_version(songVersionId, **kwargs):
 
 
 
-######################################## DELETE
+### DELETE
 def delete_song_version(song_version_id):
     conn = get_db_connection()
     cur = conn.cursor()
@@ -293,7 +315,7 @@ def delete_song_version(song_version_id):
     
 
 
-########################################################################################################################
+########################################################    Other      ###############################################
 
 def safe_filename_song(title):
     title = title.replace(' ', '_')  
@@ -327,7 +349,7 @@ def get_duration_ffmpeg(path):
 
 def get_instrument(score):
     instruments = list(score.recurse().getElementsByClass('Instrument'))
-    # Wybierz pierwszy niepusty instrument
+
     instrument_name = None
     for inst in instruments:
         name = inst.instrumentName or inst.bestName()
@@ -362,7 +384,7 @@ def transpose_key_root(midi_path, new_key, curr_key=None):
     mf.close()
 
 
-########################################################################################################################
+#############################################################      API    ###################################################
 
 @app.route("/")
 def serve_index():
@@ -375,16 +397,13 @@ def serve_static(path):
 @app.route('/api/get-songs-list-dropdown', methods=['GET'])
 def get_midi_files_dropdown():
     songs = get_song_versions(('version_id','title'))
-    #print("HELLLOOOOOOO")
-    #print(songs)
+
     return jsonify(songs)
 
 @app.route('/api/get-songs-list-gallery', methods=['GET'])
 def get_midi_files_gallery():
     songs = get_song_versions(('version_id','title', 'source',
                                'picture_path','uploaded_date','key_root', 'key_mode',  'duration', 'description'))
-    #print("HELLLOOOOOOO2")
-    #print(songs)
     return jsonify(songs)
 
 
@@ -395,7 +414,6 @@ def update_version_song_api():
     saveAsNew = data.pop('save_as_new',None)
     print(saveAsNew)
 
-
     song_version_data_map={}
     song_version_id = data.get('version_id')
     for f in data:
@@ -403,6 +421,10 @@ def update_version_song_api():
         if mapped_field in allowedFieldsSongVersions: 
             song_version_data_map[mapped_field] = data[f]
     
+        orig = get_song_versions(version_id=song_version_id)
+    if not orig:
+        return jsonify({'error': 'Song version not found'}), 404
+
 
     song_version = get_song_versions(fields=['key_root'], version_id=song_version_id)
     curr_key = song_version.get('key_root')
@@ -423,11 +445,11 @@ def update_version_song_api():
                 except Exception as e:
                     print(f"Error deleting file {song_version[f]}: {e}")
             song_version_data_map[f] = '' 
-    update_song_version(song_version_id, **song_version_data_map)
+    if saveAsNew:
+        add_new_song_version(song_version_data_map)
+    else: 
+        update_song_version(song_version_id, **song_version_data_map)
     return '', 204
-
-
-######################################## Upload functions  ########################################
 
 
 def release_upload_lock():
@@ -454,7 +476,6 @@ def force_unlock_upload_if_stuck():
 
 
 
-
 @app.route('/api/upload-audio', methods=['POST'])
 def upload_audio():
     force_unlock_upload_if_stuck() # Unlock if the previous job is processing for over 5 minutes
@@ -472,8 +493,7 @@ def upload_audio():
         audio_file = request.files['audio_file']
         if audio_file.filename == '':
             return jsonify({'error': 'No selected file'}), 400
-        
-        user_id = 1 # TODO po zalogowaniu dynamicznie dodawany user
+        user_id = 1 
         title = audio_file.filename 
         filename = safe_filename_song(title) + '.mp3'
         audio_path = os.path.join(UPLOAD_FOLDER, filename)
@@ -490,7 +510,7 @@ def upload_audio():
 
 @app.route('/api/download-upload-audio', methods=['POST'])
 def download_audio_yt_dlp():
-    force_unlock_upload_if_stuck() # Unlock if the previous job is processing for over 5 minutes
+    force_unlock_upload_if_stuck() #unlock if the previous job is processing for over 5 minutes
 
     if not songUploadLock.acquire(blocking=False):  # try to acquire the lock without waiting (blocking=True would wait until the lock is released), if another upload is in progress return 429
         return jsonify({"error": "Another upload job in progress"}), 429
@@ -499,7 +519,7 @@ def download_audio_yt_dlp():
     uploadLockStartTime = time.time()
 
     data = request.get_json()
-    user_id = 1 # TODO po zalogowaniu dynamicznie dodawany user
+    user_id = 1 
     youtube_url = data.get('youtube_url')
 
     if not youtube_url:
@@ -514,7 +534,7 @@ def download_audio_yt_dlp():
 
         title = video_title 
         safe_filename = safe_filename_song(video_title) 
-        audio_path = os.path.join(UPLOAD_FOLDER, safe_filename) # without '.mp3' at the end because yt-dlp adds it 
+        audio_path = os.path.join(UPLOAD_FOLDER, safe_filename) # without '.mp3' at the end because yt-dlp appends it 
         thumbnail_url = info.get('thumbnail')  
         image_path = None
 
@@ -530,15 +550,17 @@ def download_audio_yt_dlp():
 
         # Download and convert to mp3 with yt-dlp
         ydl_opts = {
-            'format': 'bestaudio',
-            'outtmpl': audio_path,
+            'format': 'bestaudio/best',
+            'outtmpl': audio_path + '.%(ext)s',
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
+                'preferredquality': '192',
             }],
-            'quiet': True,
             'noplaylist': True,
+            'quiet': True
         }
+        
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([youtube_url])
         song_id = add_new_song(user_id=user_id, title=title,audio_path=audio_path+'.mp3',source=youtube_url,picture_path=image_path,duration=duration_seconds)
@@ -652,7 +674,7 @@ def get_video():
         except Exception as e:
             return error_response(500, f'Failed to generate video: {str(e)}') # Server-side error
  
-        # Get video_path from the database 
+ 
         row = get_song_versions(fields=['video_path'], version_id=songVersionId)
         video_path = row.get('video_path') if row else None
 
@@ -725,7 +747,7 @@ def get_pdf():
     if not pdf_path or not os.path.exists(pdf_path):
         midi_path = row.get('midi_path') 
 
-        output_path = os.path.join(PDF_FOLDER, filename_base) #without .pdf
+        output_path = os.path.join(PDF_FOLDER, filename_base) 
         
         try:
             s = converter.parse(midi_path)

@@ -1,0 +1,82 @@
+flowchart TD
+ subgraph FE["Frontend: Dodanie Utworu"]
+        A["add_song()"]
+        B[["POST /api/upload-audio"]]
+        A2["add_song_youtube()"]
+        B2[["POST /api/download-upload-audio"]]
+  end
+ subgraph BE["Backend: Zapisanie audio"]
+        L2A["upload_audio()"]
+        AUDIO["Audio"]
+        ADDA["🗄 add_new_song()"]
+        L2B["download_audio_yt_dlp()"]
+  end
+ subgraph CONV["Frontend:Konwersja do MIDI"]
+        CONT["convert_file()"]
+        F[["POST /api/convert-audio"]]
+  end
+ subgraph BE2["Backend: Konwersja do MIDI"]
+        G1["convert_audio()"]
+        MIDI["MIDI"]
+  end
+ subgraph EXP["Eksport notacji z MIDI"]
+        MXML["MusicXML"]
+        LILY["Plik .ly"]
+        PDF["PDF"]
+  end
+ subgraph VID["Backend: generowanie animacji"]
+        SPACE[" "]
+        VID1["generate_video()"]
+        VIDEO["Wideo MP4"]
+  end
+    AUDIO --> ADDA
+    A -- "plik .mp3" --> B
+    A2 -- YouTube URL --> B2
+    B --> L2A
+    L2A --> AUDIO
+    B2 --> L2B
+    L2B --> AUDIO
+    ADDA --> CONT
+    CONT --> F
+    F --> G1
+    G1 -- transkun --> MIDI
+    G1 -- basic bitch --> MIDI
+    SPACE --> VID1
+    MIDI --> VID1
+    VID1 -- synthviz + ffmpeg + timidity --> VIDEO
+    MIDI -- music21 --> MXML & LILY
+    LILY -- LilyPond --> PDF
+    STEP["             "]
+
+     A:::fe
+     B:::api
+     A2:::fe
+     B2:::api
+     L2A:::db
+     AUDIO:::out
+     ADDA:::db
+     L2B:::db
+     CONT:::fe
+     F:::api
+     G1:::fe
+     MIDI:::out
+     MXML:::out
+     LILY:::tmp
+     PDF:::out
+     SPACE:::empty
+      VID1:::fe
+      VIDEO:::out
+      STEP:::empty
+
+    classDef fe fill:#fff2d9,stroke:#d6a85b,stroke-width:1px
+    classDef api fill:#d0e0f0,stroke:#99a,stroke-width:1px
+    classDef db fill:#eeeeff,stroke:#7f8ac6,stroke-width:1px
+    classDef be fill:#f6f6f6,stroke:#bbb,stroke-width:1px
+    classDef core fill:#ffeccc,stroke:#d6a85b,stroke-width:1px
+    classDef tmp fill:#f0fff0,stroke:#9bc79b,stroke-width:1px
+    classDef out fill:#e8f4ff,stroke:#7fb3e6,stroke-width:1px
+    classDef empty fill:none,stroke:none
+    linkStyle 12 stroke:none
+    
+
+

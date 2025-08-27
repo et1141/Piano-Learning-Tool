@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+piano-env/
+env/
+.git
+.gitignore
+*.swp
+*.swo
+*.DS_Store
+.idea/
+.vscode/
+old-files/
+db.py

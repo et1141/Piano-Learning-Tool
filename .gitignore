@@ -2,8 +2,7 @@ notes.md
 piano-env/*
 video_frames/*
 old-files/*
-uploads/*
-videos/*
 test.py
 print_database.py
 output.wav
+db.py

@@ -1,33 +1,61 @@
-The project involves the practical part of my final bachelor thesis, where I created a tool to help with learning to play the piano. The main objective of the project is to convert an audio file into a MIDI file. The goal is to build and train my own model (possibly inspired by the Transkun model) while also providing the option to use other existing models, like Spotify’s Basic Pitch.
+# Piano Learning Tool 
+ The main functionality of the application is the transcription of arbitrary musical pieces into the MIDI format using artificial intelligence methods (including Transkun and Basic Pitch). A user, having only an audio file or a link to an online recording (e.g., from YouTube), can generate an animation visu- alizing a piano keyboard during playback, change the key, and export the piece in MIDI, MusicXML, or as sheet music in PDF format. The application was developed in a client–server architecture: the backend is implemented in Python with the Flask framework , while the frontend is built with HTML/CSS/JavaScript. The project makes use of several libraries, including synthviz, music21, and partitura.
 
-# Piano Learning Tool — Setup Guide
 
 
-## Clone the Repository
+
+## Option 1: Run with Docker
+
+### Clone the Repository
 ```bash
 git clone https://github.com/et1141/piano-audio-to-midi
 cd piano-audio-to-midi
 ```
 
-## Required system packages
+### Build Docker image
+```bash
+docker build -t piano-learning-app .
+```
 
+
+### Run container
+```bash
+docker run -d -p 8000:8000 piano-learning-app
+```
+
+
+The server will be available at:  
+`http://localhost:8000`
+
+To access the application, open `index.html` in the browser or simply go to:  
+`http://localhost:8000`
+
+
+
+## Option 2: Manual installation
+
+### Clone the Repository
+```bash
+git clone https://github.com/et1141/piano-audio-to-midi
+cd piano-audio-to-midi
+```
+
+### Install required system packages
 
 Make sure you have the following installed **outside of Python**:
 - **FFmpeg** — used by Synthviz to generate video:
-  - macOS: `brew install ffmpeg`
-  - Ubuntu: `sudo apt install ffmpeg`
 - **Timidity** — used by Synthviz to synthesize audio from MIDI:
-  - macOS: `brew install timidity`
-  - Ubuntu: `sudo apt install timidity`
 - **LilyPond** - used by music21 to generate pdf music sheet:
-  - macOS: `brew install lilypond`
-  - Ubuntu: `sudo apt install lilypond`
-## Install pyenv (macOS)
+
+  - macOS: `brew install ffmpeg timidity lilypond`
+  - Ubuntu: `sudo apt install ffmpeg timidity lilypond`
+
+### Install pyenv (macOS)
 ```bash
 brew install pyenv
 ```
 
-## Configure pyenv in shell
+### Configure pyenv in shell
 ```bash
 echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
 echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
@@ -35,68 +63,57 @@ echo 'eval "$(pyenv init --path)"' >> ~/.bashrc
 echo 'eval "$(pyenv init -)"' >> ~/.bashrc
 ```
 
-## Reload terminal
+#### Reload terminal
 ```bash
 source ~/.bashrc
 ```
 
-## Install Python 3.10 (basic pitch doesn't work with later versions)
+### Install Python 3.10(basic pitch doesn't work with later versions on Macbook)
 
 ```bash
-pyenv install 3.10.13
+pyenv install 3.10.5
 ```
 
-## Set local Python version
+### Set local Python version
 ```bash
-pyenv local 3.10.13
+pyenv local 3.10.5
 ```
 
-## Create and Activate Virtual Environment
+### Create and Activate Virtual Environment
 ```bash
 python -m venv piano-env
 source piano-env/bin/activate
 ```
-
-## Install Dependencies
+Double check if you have python 3.10.5 installed! 
+```bash
+python --version
+```
+### Install Dependencies
 ```bash
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-## Run the Backend (Flask)
+### Run the Backend (Flask)
 ```bash
 python backend_server.py
 ```
-Backend will be available at `http://localhost:8000`.
+The server will be available at http://localhost:8000.
 
-## Open the Frontend
-Open `index.html` in your browser and upload an audio file. A download link for the converted MIDI file will appear after conversion.
-
-## Done 🎶
-Your project is ready! Let me know if you hit any snags. 🚀
+### Done
+To access the application, open `index.html` in the browser or simply go to:  
+`http://localhost:8000` address.  
 
 
-## Folder Structure
-```
-project-root/
-├── piano-env/           # Virtual environment (ignored by Git)
-├── uploads/            # Uploaded audio files
-├── midi/               # Generated MIDI files
-├── backend_server.py   # Flask backend
-├── index.html          # Frontend
-├── requirements.txt    # Python dependencies
-└── .gitignore          # Ignored files
-```
 
-## Troubleshooting
-**Flask not installed:**
+
+
+## Share the app via Internet
+If you want to expose the app over the Internet, use [ngrok](https://ngrok.com/):
 ```bash
-pip install flask
+ngrok http 8000
 ```
 
-**"No file uploaded" error:**
-Ensure you're selecting a valid audio file (like `.wav` or `.mp3`).
+This will generate a public HTTPS link redirecting traffic to your local server.
 
-**Server not responding:**
-Make sure Flask server is running and the frontend points to `http://localhost:8000`.
-
+---
