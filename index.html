@@ -168,13 +168,12 @@
                 justify-content: flex-start;
                 height: auto !important;
             }
-            /* hide "Piano Learning Tool"*/
             .w3-title {
                 display: none !important;
             }
             }
             .w3-content {
-                margin-top: 92px !important; /* lub więcej, jeśli navbar ma 2 rzędy */
+                margin-top: 92px !important; 
             }
     </style>
 
@@ -189,7 +188,6 @@
             <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('upload')">Upload</a>
             <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('video')">Training Video</a>
             <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('detect')">Pitch Detector</a>
-            <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('tutorial')">Tutorial</a>
             <a href="#" class="w3-bar-item w3-button w3-padding-large" onclick="show_section('game')">Game</a>
             <span class="w3-bar-item w3-title w3-right">Piano Learning Tool</span>
             <!-- Songs dropdown -->
@@ -267,19 +265,11 @@
             </div>
         </div>
 
-        <!-- Tutorial Section -->
-        <div id="tutorial" class="section">
-            <div class="w3-container">
-                <h2>Tutorial & Documentation</h2>
-                <p>Instructions, video guides, and documentation will be available here.</p>
-            </div>
-        </div>
-
         <!-- Game Section -->
 
         <div id="game" class="section">
             <div id="game-root" class="w3-container">
-                <iframe src="http://127.0.0.1:8000/game" width="100%" height="800px" style="border:none;"></iframe>
+                <iframe id="game-frame" src="http://localhost:8000/game" width="100%" height="800px" style="border:none;"></iframe>
             </div>
         </div>
 
@@ -347,7 +337,27 @@
         let currentSection = null;
 
 
+  const SERVER_URL = 'https://0d5009c9c6f1.ngrok-free.app'; 
+  //const SERVER_URL = 'http://localhost:8000'; 
+  
+  const api = (p) => `${SERVER_URL}${p}`;
 
+  const NGROK_HEADERS = { 'ngrok-skip-browser-warning': 'true' };
+
+
+  function apiFetch(path, options = {}) {
+    const headers = { ...(options.headers || {}), ...NGROK_HEADERS };
+    return fetch(api(path), { ...options, headers });
+  }
+
+
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const gameFrame = document.getElementById("game-frame");
+        if (gameFrame) {
+            gameFrame.src = api('/game');
+        }
+    });
 
         function get_status_spinner_message_html(message){
             return `
@@ -385,7 +395,14 @@
                 load_songs_gallery();
             }
             else if (id === 'video') {
+               
                 generate_training_video()
+            }
+            else if (id === 'game') {
+                const gameFrame = document.getElementById('game-frame');
+                if (gameFrame && gameFrame.contentWindow.startListening) {
+                    gameFrame.contentWindow.startListening();
+                }
             }
 
             currentSection = id
@@ -397,9 +414,9 @@
             const dropdown = document.getElementById('songs-dropdown');
 
             try {
-                const res = await fetch('http://localhost:8000/api/get-songs-list-dropdown');
-                const songs = await res.json();
+                const res = await apiFetch('/api/get-songs-list-dropdown');
 
+                const songs = await res.json();
 
                 dropdown.innerHTML = '';
 
@@ -460,8 +477,9 @@
             container.innerHTML = '<p>Loading songs...</p>';
 
             try {
-                const res = await fetch('http://localhost:8000/api/get-songs-list-gallery');
+                const res = await apiFetch('/api/get-songs-list-gallery');
                 const songs = await res.json();
+
                 container.innerHTML = ''; // Clear loading message
 
                 if (songs.length === 0) {
@@ -551,7 +569,8 @@
 
 
         function manage_song(versionId) { //displays "manage_song modal"s
-            fetch(`http://localhost:8000/api/get-song-version/${versionId}`)
+        
+            apiFetch(`/api/get-song-version/${versionId}`)
                 .then(res => res.json())
                 .then(song => {
                     //console.log(manage_song("called with song.version_id:", song.version_id)
@@ -580,11 +599,11 @@
                 picture_path: document.getElementById('manage-picture').value,
                 description: document.getElementById('manage-description').value,
                 is_public: parseInt(document.getElementById('manage-is-public').value),
-                save_as_new: asNewVersion // Możesz to obsłużyć w backendzie
+                save_as_new: asNewVersion 
             };
 
             try {
-                const res = await fetch(`http://localhost:8000/api/update-song`, {
+                const res = await apiFetch(`/api/update-song`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -614,11 +633,10 @@
         function delete_song() {
             const versionId = document.getElementById('manage-version-id').value;
             console.log(versionId)
-            console.log("AAAAAASFSAFSAFSAFASFASF!!!!!!!!")
             console.log(versionId)
 
 
-            fetch(`http://localhost:8000/api/delete-song-version/${versionId}`, {
+            apiFetch(`/api/delete-song-version/${versionId}`, {
                 method: 'DELETE'
             })
             .then(res => {
@@ -651,7 +669,7 @@
                 return;
             }
             button.dataset.cooldown = 'true';
-            const xmlUrl = `http://localhost:8000/${endpoint}?song_version_id=${versionId}`;
+            const xmlUrl = `${SERVER_URL}/${endpoint}?song_version_id=${versionId}`;
             const link = document.createElement('a');
             link.href = xmlUrl;
             link.click();
@@ -663,7 +681,7 @@
 
         async function unlock_new_song_lock() {
             try {
-                const res = await fetch('http://localhost:8000/api/unlock-upload', {
+                const res = await apiFetch(`/api/unlock-upload`, {
                     method: 'POST'
                 });
                 const data = await res.json();
@@ -682,7 +700,7 @@
             };
 
             try {
-                const res = await fetch('http://localhost:8000/api/convert-audio', {
+                const res = await apiFetch(`/api/convert-audio`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -702,7 +720,6 @@
                     //TODO: czy moze po dodaniu ustawic currentSong=data.song_version_id ? 
                 } else {
                     show_user_message('Error converting file. No MIDI generated.', true);
-                    // TODO: czy tu usunac piosenke z bazy danych? (skoro nie da sie jej skonwertowac?)
                 }
             } catch (error) {
                 console.error('Conversion failed:', error);
@@ -727,7 +744,7 @@
             formData.append('audio_file', file);
 
             try {
-                const res = await fetch('http://localhost:8000/api/upload-audio', {
+                const res = await apiFetch(`/api/upload-audio`, {
                     method: 'POST',
                     body: formData
                 });
@@ -782,7 +799,7 @@
                 statusText.style.display = 'flex';
                 statusText.innerHTML = get_status_spinner_message_html(`Downloading song from: ${url} ... please wait`);
 
-                const res = await fetch('http://localhost:8000/api/download-upload-audio', {
+                const res = await apiFetch(`/api/download-upload-audio`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -829,7 +846,7 @@
         async function wait_for_video(url, retries = 15, delay = 4000) {
             for (let i = 0; i < retries; i++) {
                 try {
-                    const res = await fetch(url, { method: 'HEAD' });
+                    const res = await apiFetch(url, { method: 'HEAD' });
                     if (res.ok || res.status === 429){ 
                         return res;
                     }
@@ -869,8 +886,7 @@
 
             try {
                 //get the song title from database
-                const songTitleUrl = `http://localhost:8000/api/get-song-version-title/${versionIdOnEnter}`;
-                const resSongVersion = await fetch(songTitleUrl);
+                const resSongVersion = await apiFetch(`/api/get-song-version-title/${versionIdOnEnter}`);
                 const data = await resSongVersion.json();
                 if (!resSongVersion.ok || !data.success) {
                     throw new Error(data.error || 'Failed to get song title');
@@ -880,7 +896,7 @@
 
 
                 //get the video
-                let videoUrl = `http://localhost:8000/api/get-video?song_version_id=${versionIdOnEnter}`;
+                let videoUrl = `/api/get-video?song_version_id=${versionIdOnEnter}`;
                 if (forceReload) {
                     videoUrl += `&t=${Date.now()}`; // force refresh by adding timestamp
                 }
@@ -896,7 +912,7 @@
                     return; // There is another job generating video for the song. The other job will load the video. So we can simply end this job here.
                 }
                 if (versionIdOnEnter==currentSong){
-                    source.src = videoUrl;
+                    source.src = api(videoUrl);
                     video.load();
                 } 
                 if (res.status === 201) { // A new video was generated by the backend (likely a time-consuming operation) — inform the user
@@ -915,7 +931,6 @@
         }
 
 
-  
 
 
 </script>
