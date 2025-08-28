@@ -247,8 +247,8 @@
         <div id="video" class="section">
             <div class="w3-container w3-center">
                 <h2 class="w3-xxlarge w3-text-black w3-margin-top">Training Video</h2>
-                <h3 id="video-title" class="w3-text-black w3-margin-top">
-                    </h2>
+                    <h3 id="video-title" class="w3-text-black w3-margin-top"></h3>
+
                     <div id="video-container" style="margin-top: 30px; display: none;">
                         <video id="synthviz-video" controls
                             style="width: 90%; max-width: 1080px; border: 2px solid #000; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
@@ -280,8 +280,7 @@
 
         <div id="game" class="section">
             <div id="game-root" class="w3-container">
-                <iframe id="game-frame" src="http://localhost:8000/game" width="100%" height="800px"
-                    style="border:none;"></iframe>
+                <iframe id="game-frame" src="http://localhost:8000" width="100%" height="800px" style="border:none;"></iframe>
             </div>
         </div>
 
@@ -352,7 +351,8 @@
         let currentSection = null;
 
 
-        const SERVER_URL = 'http://localhost:8000';
+        //const SERVER_URL = 'https://magical-heavily-bulldog.ngrok-free.app'; 
+        const SERVER_URL = 'http://localhost:8000'; 
 
         const api = (p) => `${SERVER_URL}${p}`;
 
@@ -365,14 +365,6 @@
             return fetch(api(path), { ...options, headers });
         }
 
-
-
-        document.addEventListener("DOMContentLoaded", () => {
-            const gameFrame = document.getElementById("game-frame");
-            if (gameFrame) {
-                gameFrame.src = api('/game');
-            }
-        });
 
         function get_status_spinner_message_html(message) {
             return `
@@ -413,12 +405,15 @@
 
                 generate_training_video()
             }
-            else if (id === 'game') {
+             else if (id === 'game') {
                 const gameFrame = document.getElementById('game-frame');
                 if (gameFrame && gameFrame.contentWindow.startListening) {
                     gameFrame.contentWindow.startListening();
                 }
             }
+
+
+            
 
             currentSection = id
         }
@@ -506,7 +501,7 @@
                     const songContainer = document.createElement('div');
                     songContainer.className = 'song-cart';
 
-                    const imgUrl = song.picture_path || 'static/music2.png';
+                    const imgUrl = api(`/api/get-song-picture/${song.version_id}`);
                     const descriptionHTML = song.description ? `<p class="song-description">${song.description}</p>` : '';
                     const keyHTML = (song.key_root || song.key_mode) ? `<p><strong>Key:</strong> ${song.key_root || '--'} ${song.key_mode || ''}</p>` : '';
                     const sourceHTML = song.source ? `<p><a href="${song.source}" target="_blank">Source</a></p>` : '';
