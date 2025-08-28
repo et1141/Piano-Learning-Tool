@@ -46,8 +46,7 @@ def init_db():
         description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         is_public INTEGER DEFAULT 0,
-        FOREIGN KEY (song_id) REFERENCES songs(song_id),
-        UNIQUE(song_id, model_name, key_root,key_mode,instrument)
+        FOREIGN KEY (song_id) REFERENCES songs(song_id)
     )
     ''')
 

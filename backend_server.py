@@ -11,6 +11,8 @@ import json
 import re
 import yt_dlp
 import time
+import os, shutil
+
 
 from music21 import converter, stream, interval, key, midi
 
@@ -60,6 +62,7 @@ allowedFieldsSongVersions= {'version_id', 'song_id', 'model_name','title_version
                               'description', 'created_at','is_public'}
 allowedFields = allowedFieldsSongs | allowedFieldsSongVersions
 fieldsToDeleteOnMidiChange = ['pdf_path', 'musicxml_path', 'video_path']
+filesToDelete = ['pdf_path', 'musicxml_path', 'video_path', 'audio_path','midi_path']
 fieldsModal = ["version_id", "title", "key_root", "key_mode", "picture_path", "description", "is_public"]
 
 
@@ -103,28 +106,6 @@ def add_new_song(**kwargs):
     conn.commit()
     conn.close()
     return song_id
-
-def add_new_song_version(**kwargs):
-    if 'song_id' not in kwargs:
-        raise ValueError("Missing required field: song_id")
-    for f in kwargs.keys():
-        if f not in allowedFieldsSongVersions and f != "uploaded_date":
-            raise ValueError(f"Unrecognized field: {f}")
-
-    fields = ', '.join(kwargs.keys())
-    placeholders = ', '.join(['?'] * len(kwargs))
-    values = list(kwargs.values())
-
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute(f'''
-        INSERT INTO song_versions ({fields})
-        VALUES ({placeholders})
-    ''', values)
-    song_version_id = cur.lastrowid
-    conn.commit()
-    conn.close()
-    return song_version_id
 
 
 def add_new_song_version(song_id,model_name,key_root,key_mode,instrument,filename,midi_path):
@@ -183,7 +164,6 @@ def get_song_versions(fields=None, version_id=None):
                 selected_fields.append(f)
 
         field_str = ', '.join(selected_fields)
-        print(field_str)
     else:
         field_str = '*'  
 
@@ -209,7 +189,6 @@ def get_song_version_api(songVersionId):
     song_version = get_song_versions(fields=fieldsModal, version_id=songVersionId)
 
     if song_version:
-        print(song_version)
         return song_version, 200
 
     return {'error': 'Not found'}, 404
@@ -221,7 +200,6 @@ def get_song_version_title_api(songVersionId):
     song_version = get_song_versions(fields=fieldsModal, version_id=songVersionId)
 
     if song_version:
-        print(song_version)
         return {'success': True, 'title': song_version}, 200
 
     return {'error': 'Not found'}, 404
@@ -358,10 +336,10 @@ def get_instrument(score):
             break
 
     if instrument_name:
-        print(f"Instrument {instrument_name}")
+        print(f"[get_instrument]: Instrument {instrument_name}")
     else:
         instrument_name = "Unknown"
-        print("No instrument found — (saved as Unknown")
+        print("[get_instrument]: No instrument found — (saved as Unknown")
     return instrument_name
 
 def transpose_key_root(midi_path, new_key, curr_key=None):
@@ -407,48 +385,94 @@ def get_midi_files_gallery():
     return jsonify(songs)
 
 
+
+def update_save_version_song_api(songVersionId, songVersionDataMap):
+    songVersion = get_song_versions(version_id=songVersionId)
+    print("[update_save_version_song_api]: songversion = ", str(songVersion))
+    if not songVersion:
+        return jsonify({'error': 'Song version not found'}), 404
+
+    # create new record from the old one 
+    newSongVersionId = add_new_song_version(
+        songVersion.get('song_id'),
+        songVersion.get('model_name'),
+        songVersion.get('key_root'),
+        songVersion.get('key_mode'),
+        songVersion.get('instrument'),
+        songVersion.get('filename'),
+        songVersion.get('midi_path'),
+    )
+
+    #copy midi, change filename/midi_path to be independent
+    try:
+        orig_midi = songVersion.get('midi_path')
+        if orig_midi:
+            base, ext = os.path.splitext(orig_midi)
+            new_midi = f"{base}-{newSongVersionId}{ext or ''}"
+            os.makedirs(os.path.dirname(new_midi), exist_ok=True)
+            try:
+                shutil.copy2(orig_midi, new_midi)
+            except FileNotFoundError:
+                new_midi = orig_midi  
+            songVersionDataMap['midi_path'] = new_midi
+
+        orig_filename = songVersion.get('filename')
+        if orig_filename:
+            fbase, fext = os.path.splitext(orig_filename)
+            songVersionDataMap['filename'] = f"{fbase}-{newSongVersionId}{fext or ''}"
+    except Exception as e:
+        print(f"[update_save_version_song_api] copy-midi-error: {e}")
+
+    currKey = songVersion.get('key_root')
+    newKey = songVersionDataMap.get('key_root')
+
+    if newKey and currKey != newKey:
+        midi_path = songVersionDataMap.get('midi_path') or get_song_versions(fields=['midi_path'], version_id=newSongVersionId).get('midi_path')
+        if midi_path:
+            transpose_key_root(midi_path, newKey, curr_key=currKey)
+        for f in fieldsToDeleteOnMidiChange:
+            songVersionDataMap[f] = ''
+
+    update_song_version(newSongVersionId, **songVersionDataMap)
+    return '', 204
+
+
 @app.route('/api/update-song', methods=['POST'])
 def update_version_song_api():
     data = request.get_json()
-
     saveAsNew = data.pop('save_as_new',None)
-    print(saveAsNew)
 
-    song_version_data_map={}
-    song_version_id = data.get('version_id')
+    songVersionDataMap={}
+    songVersionId = data.pop('version_id')
     for f in data:
         mapped_field = map_song_versions_field_name(f)
         if mapped_field in allowedFieldsSongVersions: 
-            song_version_data_map[mapped_field] = data[f]
+            songVersionDataMap[mapped_field] = data[f]
     
-        orig = get_song_versions(version_id=song_version_id)
-    if not orig:
-        return jsonify({'error': 'Song version not found'}), 404
+    if(saveAsNew):
+        return update_save_version_song_api(songVersionId, songVersionDataMap)
 
+    songVersionKeyRoot = get_song_versions(fields=['key_root'], version_id=songVersionId)
+    currKey = songVersionKeyRoot.get('key_root')
+    newKey = data.get('key_root')
 
-    song_version = get_song_versions(fields=['key_root'], version_id=song_version_id)
-    curr_key = song_version.get('key_root')
-    new_key = data.get('key_root')
+    if newKey and currKey != newKey:
+        songVersion = get_song_versions(fields=fieldsToDeleteOnMidiChange + ['midi_path'], version_id=songVersionId)
+        midi_path = songVersion.get('midi_path')
 
-    if curr_key!= new_key:
-        song_version = get_song_versions(fields=fieldsToDeleteOnMidiChange + ['midi_path'], version_id=song_version_id)
-        midi_path = song_version.get('midi_path')
-
-        transpose_key_root(midi_path, new_key, curr_key=curr_key)
+        transpose_key_root(midi_path, newKey, curr_key=currKey)
 
         for f in fieldsToDeleteOnMidiChange:
-            if song_version.get(f):
+            if songVersion.get(f):
                 try:
-                    os.remove(song_version[f])
+                    os.remove(songVersion[f])
                 except FileNotFoundError:
                     pass  
                 except Exception as e:
-                    print(f"Error deleting file {song_version[f]}: {e}")
-            song_version_data_map[f] = '' 
-    if saveAsNew:
-        add_new_song_version(song_version_data_map)
-    else: 
-        update_song_version(song_version_id, **song_version_data_map)
+                    print(f"[update_version_song_api]: Error deleting file {songVersion[f]}: {e}")
+            songVersionDataMap[f] = '' 
+
+    update_song_version(songVersionId, **songVersionDataMap)
     return '', 204
 
 
@@ -471,7 +495,7 @@ def force_unlock_upload_if_stuck():
     global uploadLockStartTime
     if songUploadLock.locked() and uploadLockStartTime:
         if time.time() - uploadLockStartTime > uploadLockTimeout:
-            print("Upload lock timeout reached — forcing release.")
+            print("[force_unlock_upload_if_stuck]: Upload lock timeout reached — forcing release.")
             release_upload_lock()
 
 
@@ -503,7 +527,7 @@ def upload_audio():
         song_id = add_new_song(user_id=user_id, title=title,audio_path=audio_path,duration=duration_seconds)
         return jsonify({'song_id': song_id}), 200 
     except Exception as e:
-        print("Upload audio  error:", e)
+        print("[upload_audio]: Upload audio  error:", e)
         release_upload_lock()
         return jsonify({'error': str(e)}), 500 # Server-side error
 
@@ -546,7 +570,7 @@ def download_audio_yt_dlp():
                     with open(image_path, 'wb') as f:
                         f.write(res.content)
             except Exception as e:
-                print("Warning: Couldn't download thumbnail:", e)
+                print("[download_audio_yt_dlp]: Warning: Couldn't download thumbnail:", e)
 
         # Download and convert to mp3 with yt-dlp
         ydl_opts = {
@@ -567,7 +591,7 @@ def download_audio_yt_dlp():
         return jsonify({'song_id': song_id, 'title':title}), 200
      
     except Exception as e:
-        print("YouTube download error:", e)
+        print("[download_audio_yt_dlp]: YouTube download error:", e)
         release_upload_lock()
         return jsonify({'error': str(e)}), 500 # Server-side error
     
@@ -599,7 +623,7 @@ def convert_audio():
         # Song metadata analysis
         score = converter.parse(temp_midi_path)
         key_signature_data = score.analyze('key')
-        print(f"Tonacja: {key_signature_data.tonic.name} {key_signature_data.mode}")
+        print(f"[convert_audio]: Key = {key_signature_data.tonic.name} {key_signature_data.mode}")
         key_root = key_signature_data.tonic.name
         key_mode = key_signature_data.mode
         instrument = get_instrument(score)
@@ -614,7 +638,7 @@ def convert_audio():
         return jsonify({'title': title, 'song_version_id': song_version_id}), 200
     
     except Exception as e:
-        print("Audio to midi converion failed:", e)
+        print("[convert_audio]: Audio to midi converion failed:", e)
         return jsonify({'error': str(e)}), 500 # Server-side error
     finally:
         release_upload_lock()
@@ -629,7 +653,7 @@ def generate_video(songVersionId):
         videoGenerationJobs.add(songVersionId)
 
     try:
-        print(f"[generate_video] Starting generation for version_id={songVersionId}")
+        print(f"[generate_video]: Starting generation for version_id={songVersionId}")
         song_version = get_song_version(songVersionId)
         midi_path = song_version['midi_path']
 
@@ -646,7 +670,7 @@ def generate_video(songVersionId):
     finally:
         with videoGenerationJobsLock:
             videoGenerationJobs.pop(songVersionId)
-        print(f"[generate_video] Finished generation for version_id={songVersionId}")
+        print(f"[generate_video]: Finished generation for version_id={songVersionId}")
 
 
 @app.route('/api/get-video', methods=['GET', 'HEAD'])
@@ -724,10 +748,10 @@ def get_musicxml():
         try:
             s = converter.parse(midi_path)
             s.write('musicxml', musicxml_path)
-            print(f"Successfully converted {midi_path} to {musicxml_path}")
+            print(f"[get_musicxml]: Successfully converted {midi_path} to {musicxml_path}")
             update_song_version(songVersionId, musicxml_path=musicxml_path)
         except Exception as e:
-            print(f"Error during conversion: {e}")
+            print(f"[get_musicxml]: Error during conversion: {e}")
             return jsonify({'error': 'Failed to convert MIDI to MusicXML', 'details': str(e)}), 500 # Server-side error
         
     return send_file(musicxml_path, download_name = filename)
@@ -755,10 +779,10 @@ def get_pdf():
             if os.path.exists(output_path): #music21 creates 2 files: 'pdf_path' and 'pdf_path'+'.pdf'
                 os.remove(output_path) 
 
-            print(f"Successfully converted {midi_path} to {pdf_path}")
+            print(f"[get_pdf]: Successfully converted {midi_path} to {pdf_path}")
             update_song_version(songVersionId, pdf_path=str(pdf_path))
         except Exception as e:
-            print(f"Error during conversion: {e}")
+            print(f"[get_pdf]: Error during conversion: {e}")
             return jsonify({'error': 'Failed to convert MIDI to PDF', 'details': str(e)}), 500 # Server-side error
 
     return send_file(pdf_path, as_attachment=True, download_name = filename)
@@ -776,7 +800,27 @@ def delete_song_version_api(songVersionId):
     return {'success': True, 'deleted_id': songVersionId}, 200
     
 
-    
+   
+@app.route('/api/get-song-picture/<int:songVersionId>')
+def get_song_picture(songVersionId):
+    row = get_song_versions(fields=['picture_path'], version_id=songVersionId)
+
+    if row: 
+        picture_path = row["picture_path"]
+        if picture_path.startswith("static/"):
+            return send_file(row["picture_path"], mimetype='image/png')
+        elif picture_path.startswith("http://") or picture_path.startswith("https://"):
+            try: 
+                response = requests.get(picture_path)
+                if response.status_code == 200:
+                    return send_file(
+                        BytesIO(response.content),
+                        mimetype='image/png'
+                    )
+            except requests.exceptions.RequestException as e:
+                print(f"[get_song_picture]: Error while fetching image from the URL: {e}")
+
+    return send_file("static/music2.png", mimetype='image/png')
 
 
 @app.route('/game')
