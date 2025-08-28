@@ -279,13 +279,25 @@ def update_song_version(songVersionId, **kwargs):
 
 
 ### DELETE
-def delete_song_version(song_version_id):
+def delete_song_version(songVersionId):
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('DELETE FROM song_versions WHERE version_id = ?',(song_version_id,))
+
+    row = get_song_versions(fields=filesToDelete, version_id=songVersionId)
+    if row:
+        for col in filesToDelete:
+            file_path = row.get(col) 
+            if file_path and os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except Exception as e:
+                    print(f"[delete_song_version] Error while deleting {file_path}: {e}")
+
+    cur.execute('DELETE FROM song_versions WHERE version_id = ?',(songVersionId,))
     deleted_count = cur.rowcount
     conn.commit()
     conn.close()
+
     return deleted_count
  
     
