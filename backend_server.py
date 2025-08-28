@@ -2,10 +2,8 @@ from flask import Flask, request, jsonify, send_from_directory, send_file, rende
 from flask_cors import CORS
 import os
 import subprocess
-import numpy as np
 from basic_pitch.inference import predict
 from basic_pitch import ICASSP_2022_MODEL_PATH
-from mido import MidiFile
 from synthviz import create_video
 import json
 import re
@@ -800,16 +798,16 @@ def delete_song_version_api(songVersionId):
     return {'success': True, 'deleted_id': songVersionId}, 200
     
 
-   
+
+
+
 @app.route('/api/get-song-picture/<int:songVersionId>')
 def get_song_picture(songVersionId):
     row = get_song_versions(fields=['picture_path'], version_id=songVersionId)
 
-    if row: 
+    if row and row["picture_path"]:
         picture_path = row["picture_path"]
-        if picture_path.startswith("static/"):
-            return send_file(row["picture_path"], mimetype='image/png')
-        elif picture_path.startswith("http://") or picture_path.startswith("https://"):
+        if picture_path.startswith("http://") or picture_path.startswith("https://"):
             try: 
                 response = requests.get(picture_path)
                 if response.status_code == 200:
@@ -819,8 +817,12 @@ def get_song_picture(songVersionId):
                     )
             except requests.exceptions.RequestException as e:
                 print(f"[get_song_picture]: Error while fetching image from the URL: {e}")
-
+        return send_file(row["picture_path"], mimetype='image/png')
+    
+    
     return send_file("static/music2.png", mimetype='image/png')
+
+
 
 
 @app.route('/game')
